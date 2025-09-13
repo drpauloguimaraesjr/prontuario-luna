@@ -5,6 +5,7 @@ import plotly.express as px
 from datetime import datetime, date
 import io
 import base64
+import numpy as np
 from typing import List, Dict, Any, Optional
 from utils import format_date, format_lab_value, create_lab_results_chart
 
@@ -223,7 +224,9 @@ class ComparisonComponent:
         
         # Process each test
         for i, test_name in enumerate(selected_tests):
-            test_data = lab_results[lab_results['test_name'] == test_name].sort_values('test_date')
+            test_data = lab_results[lab_results['test_name'] == test_name].copy()
+            if not test_data.empty:
+                test_data = test_data.sort_values(by='test_date')
             
             if test_data.empty:
                 continue
@@ -240,7 +243,15 @@ class ComparisonComponent:
                     y_values = (y_values - y_mean) / y_std
             
             # Get units for hover text
-            units = test_data['unit'].iloc[0] if not test_data['unit'].isna().all() else ''
+            units = ''
+            if len(test_data) > 0 and 'unit' in test_data.columns:
+                try:
+                    unit_col = test_data['unit']
+                    valid_units = unit_col.dropna()
+                    if len(valid_units) > 0:
+                        units = str(valid_units.iloc[0])
+                except (AttributeError, IndexError):
+                    units = ''
             
             # Create trace based on chart type
             if chart_type == "Linha":
@@ -392,7 +403,7 @@ class ComparisonComponent:
                     copyImageToClipboard();
                     </script>
                     """
-                    st.components.v1.html(copy_js, height=0)
+                    st.html(copy_js)
                     st.success("Tentando copiar para área de transferência...")
             
             with col2:
@@ -431,13 +442,16 @@ class ComparisonComponent:
         
         # Select columns for display
         display_columns = ['test_date', 'test_name', 'formatted_value', 'lab_name', 'reference_range']
-        display_df = display_df[display_columns].rename(columns={
+        # Select and rename columns
+        display_df = display_df[display_columns].copy()
+        column_mapping = {
             'test_date': 'Data',
             'test_name': 'Exame',
             'formatted_value': 'Valor',
             'lab_name': 'Laboratório',
             'reference_range': 'Referência'
-        })
+        }
+        display_df.columns = [column_mapping.get(col, col) for col in display_df.columns]
         
         # Display table with sorting and filtering
         st.dataframe(
@@ -453,17 +467,35 @@ class ComparisonComponent:
             st.metric("Total de Registros", len(display_df))
         
         with col2:
-            unique_tests = display_df['Exame'].nunique()
-            st.metric("Exames Únicos", unique_tests)
+            try:
+                if 'Exame' in display_df.columns and not display_df.empty:
+                    unique_tests = display_df['Exame'].nunique()
+                    st.metric("Exames Únicos", int(unique_tests))
+                else:
+                    st.metric("Exames Únicos", 0)
+            except (AttributeError, TypeError):
+                st.metric("Exames Únicos", 0)
         
         with col3:
-            unique_dates = display_df['Data'].nunique()
-            st.metric("Datas Únicas", unique_dates)
+            try:
+                if 'Data' in display_df.columns and not display_df.empty:
+                    unique_dates = display_df['Data'].nunique()
+                    st.metric("Datas Únicas", int(unique_dates))
+                else:
+                    st.metric("Datas Únicas", 0)
+            except (AttributeError, TypeError):
+                st.metric("Datas Únicas", 0)
         
         with col4:
             if 'Laboratório' in display_df.columns:
-                unique_labs = display_df['Laboratório'].nunique()
-                st.metric("Laboratórios", unique_labs)
+                try:
+                    if 'Laboratório' in display_df.columns and not display_df.empty:
+                        unique_labs = display_df['Laboratório'].nunique()
+                        st.metric("Laboratórios", int(unique_labs))
+                    else:
+                        st.metric("Laboratórios", 0)
+                except (AttributeError, TypeError):
+                    st.metric("Laboratórios", 0)
     
     def _render_export_options(self, lab_results: pd.DataFrame, selected_tests: List[str], selected_dates: List[str]):
         """Render export options for comparison data"""
@@ -560,7 +592,15 @@ class ComparisonComponent:
                 test_data = lab_results[lab_results['test_name'] == test_name]
                 if not test_data.empty:
                     values = test_data['test_value'].astype(float)
-                    unit = test_data['unit'].iloc[0] if not test_data['unit'].isna().all() else ''
+                    unit = ''
+                    if len(test_data) > 0 and 'unit' in test_data.columns:
+                        try:
+                            unit_series = test_data['unit']
+                            valid_units = unit_series.dropna()
+                            if len(valid_units) > 0:
+                                unit = str(valid_units.iloc[0])
+                        except (AttributeError, IndexError):
+                            unit = ''
                     
                     report_lines.append(f"\n{test_name}:")
                     report_lines.append(f"  Registros: {len(values)}")
@@ -572,8 +612,9 @@ class ComparisonComponent:
                         report_lines.append(f"  Desvio padrão: {values.std():.2f} {unit}")
                         
                         # Trend analysis
-                        first_value = values.iloc[0]
-                        last_value = values.iloc[-1]
+                        values_list = values.tolist()
+                        first_value = float(values_list[0])
+                        last_value = float(values_list[-1])
                         change = last_value - first_value
                         change_percent = (change / first_value * 100) if first_value != 0 else 0
                         
@@ -586,7 +627,8 @@ class ComparisonComponent:
             recent_data = lab_results.nlargest(10, 'test_date')
             for _, row in recent_data.iterrows():
                 date_str = datetime.strptime(str(row['test_date']), '%Y-%m-%d').strftime('%d/%m/%Y')
-                value_str = format_lab_value(row['test_value'], row.get('unit', ''))
+                unit_val = str(row.get('unit', '')) if row.get('unit') is not None else ''
+                value_str = format_lab_value(row['test_value'], unit_val)
                 report_lines.append(f"  {date_str} - {row['test_name']}: {value_str}")
         
         report_lines.append("\n" + "=" * 60)
