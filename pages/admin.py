@@ -8,7 +8,7 @@ from ai_processing import AIProcessor
 from utils import validate_file_type, format_date, parse_date
 
 def run_admin_page(db, auth):
-    """Run the admin page with authentication"""
+    """Executar a página administrativa com autenticação"""
     
     st.set_page_config(
         page_title="Administração - Prontuário Luna",
@@ -16,17 +16,17 @@ def run_admin_page(db, auth):
         layout="wide"
     )
     
-    # Check authentication
+    # Verificar autenticação
     if not auth.require_auth(redirect_to_login=True):
         return
     
     current_user = auth.get_current_user()
     
-    # Admin header
+    # Cabeçalho administrativo
     st.markdown("# 🔐 Painel Administrativo")
     st.markdown(f"**Usuário:** {current_user['name']} ({current_user['email']})")
     
-    # Logout button
+    # Botão de logout
     col1, col2 = st.columns([6, 1])
     with col2:
         if st.button("🚪 Sair"):
@@ -34,7 +34,7 @@ def run_admin_page(db, auth):
             st.query_params.clear()
             st.rerun()
     
-    # Admin navigation tabs
+    # Abas de navegação administrativa
     admin_tab = st.selectbox(
         "Selecione a seção:",
         [
@@ -50,7 +50,7 @@ def run_admin_page(db, auth):
     
     st.markdown("---")
     
-    # Initialize AI processor
+    # Inicializar processador de IA
     ai_processor = AIProcessor()
     
     if admin_tab == "📊 Dashboard":
@@ -69,15 +69,15 @@ def run_admin_page(db, auth):
         render_settings_section(db)
 
 def render_admin_dashboard(db):
-    """Render admin dashboard with statistics"""
+    """Renderizar painel administrativo com estatísticas"""
     st.header("📊 Dashboard Administrativo")
     
-    # Get statistics
+    # Obter estatísticas
     lab_results = db.get_lab_results()
     timeline_events = db.get_medical_timeline()
     medications = db.get_medication_history()
     
-    # Display metrics
+    # Exibir métricas
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -109,7 +109,7 @@ def render_admin_dashboard(db):
             st.write(f"• {event['title']} - {format_date(event['event_date'])}")
 
 def render_pdf_upload_section(db, ai_processor, user_id):
-    """Render PDF upload and processing section"""
+    """Renderizar seção de upload e processamento de PDF"""
     st.header("📄 Upload de Exames Laboratoriais")
     
     # File upload
@@ -129,15 +129,15 @@ def render_pdf_upload_section(db, ai_processor, user_id):
         if st.button("🔄 Processar Arquivos", type="primary"):
             process_uploaded_pdfs(uploaded_files, db, ai_processor, user_id)
     
-    # Display existing lab results
+    # Exibir resultados laboratoriais existentes
     st.subheader("Exames Registrados")
     lab_results = db.get_lab_results()
     
     if not lab_results.empty:
-        # Add edit functionality
+        # Adicionar funcionalidade de edição
         st.write("**Clique em uma linha para editar:**")
         
-        # Create editable dataframe
+        # Criar dataframe editável
         edited_df = st.data_editor(
             lab_results,
             use_container_width=True,
@@ -149,13 +149,13 @@ def render_pdf_upload_section(db, ai_processor, user_id):
         )
         
         if st.button("💾 Salvar Alterações"):
-            # Here you would implement the save logic
+            # Aqui você implementaria a lógica de salvamento
             st.success("Alterações salvas com sucesso!")
     else:
         st.info("Nenhum exame registrado ainda.")
 
 def process_uploaded_pdfs(uploaded_files, db, ai_processor, user_id):
-    """Process uploaded PDF files"""
+    """Processar arquivos PDF enviados"""
     progress_bar = st.progress(0)
     status_text = st.empty()
     
@@ -166,19 +166,19 @@ def process_uploaded_pdfs(uploaded_files, db, ai_processor, user_id):
         status_text.text(f"Processando {uploaded_file.name}...")
         
         try:
-            # Extract text from PDF
+            # Extrair texto do PDF
             pdf_text = ai_processor.extract_pdf_text(uploaded_file)
             
             if pdf_text:
-                # Process with AI
+                # Processar com IA
                 lab_results = ai_processor.process_lab_pdf(pdf_text, uploaded_file.name)
                 
-                # Save results to database
+                # Salvar resultados no banco de dados
                 for result in lab_results:
                     if db.save_lab_result(result, user_id):
                         processed_results.append(result)
                 
-                # Save uploaded file
+                # Salvar arquivo enviado
                 uploaded_file.seek(0)
                 file_data = uploaded_file.read()
                 db.save_uploaded_file(uploaded_file.name, file_data, 'pdf', user_id)
@@ -193,7 +193,7 @@ def process_uploaded_pdfs(uploaded_files, db, ai_processor, user_id):
     if processed_results:
         st.success(f"✅ Processamento concluído! {len(processed_results)} exames adicionados.")
         
-        # Display summary
+        # Exibir resumo
         st.subheader("Resumo dos Dados Extraídos")
         summary_df = pd.DataFrame(processed_results)
         st.dataframe(summary_df, use_container_width=True)
@@ -201,7 +201,7 @@ def process_uploaded_pdfs(uploaded_files, db, ai_processor, user_id):
         st.warning("Nenhum dado foi extraído dos arquivos.")
 
 def render_clinical_notes_section(db, ai_processor, user_id):
-    """Render clinical notes management section"""
+    """Renderizar seção de gerenciamento de notas clínicas"""
     st.header("📝 Construção de Prontuário Clínico")
     
     # Input methods tabs
@@ -219,7 +219,7 @@ def render_clinical_notes_section(db, ai_processor, user_id):
     elif input_tab == "🎥 Vídeo":
         render_video_input_section(db, ai_processor, user_id)
     
-    # Display existing timeline
+    # Exibir linha do tempo existente
     st.subheader("Linha do Tempo Atual")
     timeline_events = db.get_medical_timeline()
     
@@ -240,7 +240,7 @@ def render_clinical_notes_section(db, ai_processor, user_id):
         st.info("Nenhum evento clínico registrado ainda.")
 
 def render_text_input_section(db, ai_processor, user_id):
-    """Render text input section for clinical notes"""
+    """Renderizar seção de entrada de texto para notas clínicas"""
     st.subheader("Entrada de Texto")
     
     with st.form("text_clinical_form"):
@@ -263,7 +263,7 @@ def render_text_input_section(db, ai_processor, user_id):
                 st.error("Por favor, digite o texto clínico.")
 
 def render_audio_input_section(db, ai_processor, user_id):
-    """Render audio input section"""
+    """Renderizar seção de entrada de áudio"""
     st.subheader("Entrada de Áudio")
     
     uploaded_audio = st.file_uploader(
@@ -277,13 +277,13 @@ def render_audio_input_section(db, ai_processor, user_id):
         
         if st.button("🔄 Transcrever e Processar", type="primary"):
             with st.spinner("Transcrevendo áudio..."):
-                # Transcribe audio
+                # Transcrever áudio
                 transcribed_text = ai_processor.transcribe_audio(uploaded_audio)
                 
                 if transcribed_text:
                     st.success("Áudio transcrito com sucesso!")
                     
-                    # Display transcription
+                    # Exibir transcrição
                     st.subheader("Transcrição:")
                     edited_text = st.text_area(
                         "Revise e edite a transcrição se necessário:",
@@ -302,14 +302,14 @@ def render_audio_input_section(db, ai_processor, user_id):
                     st.error("Erro na transcrição do áudio.")
 
 def process_clinical_text(text: str, event_date: date, db, ai_processor, user_id):
-    """Process clinical text with AI"""
+    """Processar texto clínico com IA"""
     with st.spinner("Processando texto com IA..."):
         processed_data = ai_processor.process_clinical_text(text)
         
         if processed_data:
             st.success("Texto processado com sucesso!")
             
-            # Display processed information
+            # Exibir informações processadas
             col1, col2 = st.columns(2)
             
             with col1:
@@ -340,7 +340,7 @@ def process_clinical_text(text: str, event_date: date, db, ai_processor, user_id
                     height=200
                 )
             
-            # Save button
+            # Botão de salvar
             if st.button("💾 Salvar no Prontuário", type="primary"):
                 event_data = {
                     'event_date': final_date,
@@ -359,10 +359,10 @@ def process_clinical_text(text: str, event_date: date, db, ai_processor, user_id
             st.error("Erro no processamento do texto.")
 
 def render_medications_section(db, ai_processor, user_id):
-    """Render medications management section"""
+    """Renderizar seção de gerenciamento de medicamentos"""
     st.header("💊 Gerenciamento de Medicamentos")
     
-    # Add new medication
+    # Adicionar novo medicamento
     with st.expander("Adicionar Novo Medicamento"):
         with st.form("new_medication_form"):
             col1, col2 = st.columns(2)
@@ -382,7 +382,7 @@ def render_medications_section(db, ai_processor, user_id):
             
             if st.form_submit_button("💾 Adicionar Medicamento"):
                 if med_name and dose and start_date:
-                    # Validate medication name with AI
+                    # Validar nome do medicamento com IA
                     validation = ai_processor.validate_medication_name(med_name)
                     
                     med_data = {
@@ -405,14 +405,14 @@ def render_medications_section(db, ai_processor, user_id):
                 else:
                     st.error("Preencha pelo menos nome, dose e data de início.")
     
-    # Display existing medications
+    # Exibir medicamentos existentes
     st.subheader("Medicamentos Registrados")
     medications = db.get_medication_history()
     
     if medications:
         med_df = pd.DataFrame(medications)
         
-        # Format dates for display
+        # Formatar datas para exibição
         med_df['start_date'] = med_df['start_date'].apply(format_date)
         med_df['end_date'] = med_df['end_date'].apply(lambda x: format_date(x) if x else "Em uso")
         
@@ -420,7 +420,7 @@ def render_medications_section(db, ai_processor, user_id):
     else:
         st.info("Nenhum medicamento registrado ainda.")
     
-    # Audio medication entry
+    # Entrada de medicamentos por áudio
     st.subheader("Entrada de Medicamentos por Áudio")
     med_audio = st.file_uploader(
         "Upload de áudio com informações de medicamentos:",
@@ -430,7 +430,7 @@ def render_medications_section(db, ai_processor, user_id):
     
     if med_audio and st.button("🔄 Processar Áudio de Medicamentos"):
         with st.spinner("Processando áudio..."):
-            # Transcribe and process
+            # Transcrever e processar
             transcribed_text = ai_processor.transcribe_audio(med_audio)
             
             if transcribed_text:
@@ -450,10 +450,10 @@ def render_medications_section(db, ai_processor, user_id):
                                     st.error("Erro ao salvar.")
 
 def render_media_section(db, user_id):
-    """Render media upload section"""
+    """Renderizar seção de upload de mídia"""
     st.header("📸 Fotos e Mídia")
     
-    # Photo upload sections
+    # Seções de upload de fotos
     col1, col2, col3 = st.columns(3)
     
     with col1:
@@ -465,7 +465,7 @@ def render_media_section(db, user_id):
         )
         
         if luna_photo and st.button("Salvar Foto da Luna"):
-            # Save luna photo logic here
+            # Lógica para salvar foto da Luna aqui
             st.success("Foto da Luna salva!")
     
     with col2:
@@ -477,7 +477,7 @@ def render_media_section(db, user_id):
         )
         
         if tutor1_photo and st.button("Salvar Foto Paulo"):
-            # Save tutor1 photo logic here
+            # Lógica para salvar foto do tutor1 aqui
             st.success("Foto do Paulo salva!")
     
     with col3:
@@ -489,14 +489,14 @@ def render_media_section(db, user_id):
         )
         
         if tutor2_photo and st.button("Salvar Foto Júlia"):
-            # Save tutor2 photo logic here
+            # Lógica para salvar foto do tutor2 aqui
             st.success("Foto da Júlia salva!")
 
 def render_settings_section(db):
-    """Render system settings section"""
+    """Renderizar seção de configurações do sistema"""
     st.header("⚙️ Configurações do Sistema")
     
-    # Theme settings
+    # Configurações de tema
     st.subheader("Configurações de Tema")
     
     col1, col2 = st.columns(2)
@@ -511,22 +511,22 @@ def render_settings_section(db):
     if st.button("💾 Salvar Configurações de Tema"):
         st.success("Configurações salvas! Recarregue a página para ver as mudanças.")
     
-    # Backup section
+    # Seção de backup
     st.subheader("Backup e Exportação")
     
     col1, col2 = st.columns(2)
     with col1:
         if st.button("📥 Exportar Todos os Dados"):
-            # Export all data logic
+            # Lógica para exportar todos os dados
             st.success("Dados exportados!")
     
     with col2:
         if st.button("🔄 Backup do Sistema"):
-            # Backup logic
+            # Lógica de backup
             st.success("Backup realizado!")
 
 def render_pdf_clinical_section(db, ai_processor, user_id):
-    """Render PDF clinical notes section"""
+    """Renderizar seção de notas clínicas em PDF"""
     st.subheader("Upload de PDF Clínico")
     
     uploaded_pdf = st.file_uploader(
@@ -542,7 +542,7 @@ def render_pdf_clinical_section(db, ai_processor, user_id):
                 if pdf_text:
                     st.success("PDF processado com sucesso!")
                     
-                    # Display extracted text
+                    # Exibir texto extraído
                     st.text_area("Texto extraído:", value=pdf_text, height=200)
                     
                     event_date = st.date_input("Data do evento:", value=date.today())
@@ -553,7 +553,7 @@ def render_pdf_clinical_section(db, ai_processor, user_id):
                     st.error("Erro ao extrair texto do PDF.")
 
 def render_video_input_section(db, ai_processor, user_id):
-    """Render video input section"""
+    """Renderizar seção de entrada de vídeo"""
     st.subheader("Entrada de Vídeo")
     
     uploaded_video = st.file_uploader(

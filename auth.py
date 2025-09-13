@@ -5,7 +5,7 @@ import os
 from typing import Optional, Dict, Any
 
 class AuthManager:
-    """Handles user authentication and session management"""
+    """Gerencia autenticação de usuário e gerenciamento de sessão"""
     
     def __init__(self):
         self.connection_params = {
@@ -17,7 +17,7 @@ class AuthManager:
         }
     
     def get_connection(self):
-        """Get database connection"""
+        """Obter conexão com o banco de dados"""
         try:
             return psycopg2.connect(**self.connection_params)
         except Exception as e:
@@ -25,7 +25,7 @@ class AuthManager:
             return None
     
     def authenticate_user(self, email: str, password: str) -> Optional[Dict[str, Any]]:
-        """Authenticate user with email and password"""
+        """Autenticar usuário com email e senha"""
         conn = self.get_connection()
         if not conn:
             return None
@@ -57,7 +57,7 @@ class AuthManager:
             conn.close()
     
     def create_user(self, email: str, password: str, name: str) -> bool:
-        """Create a new user"""
+        """Criar um novo usuário"""
         conn = self.get_connection()
         if not conn:
             return False
@@ -65,13 +65,13 @@ class AuthManager:
         try:
             cursor = conn.cursor()
             
-            # Check if user already exists
+            # Verificar se o usuário já existe
             cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
             if cursor.fetchone():
                 st.error("Usuário já existe com este email.")
                 return False
             
-            # Hash password and create user
+            # Criptografar senha e criar usuário
             password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
             cursor.execute("""
                 INSERT INTO users (email, password_hash, name)
@@ -89,29 +89,29 @@ class AuthManager:
             conn.close()
     
     def is_authenticated(self) -> bool:
-        """Check if user is authenticated in current session"""
+        """Verificar se o usuário está autenticado na sessão atual"""
         return st.session_state.get('authenticated', False)
     
     def get_current_user(self) -> Optional[Dict[str, Any]]:
-        """Get current authenticated user"""
+        """Obter usuário autenticado atual"""
         if self.is_authenticated():
             return st.session_state.get('user')
         return None
     
     def login(self, user_data: Dict[str, Any]):
-        """Log in user (set session state)"""
+        """Fazer login do usuário (definir estado da sessão)"""
         st.session_state['authenticated'] = True
         st.session_state['user'] = user_data
     
     def logout(self):
-        """Log out user (clear session state)"""
+        """Fazer logout do usuário (limpar estado da sessão)"""
         if 'authenticated' in st.session_state:
             del st.session_state['authenticated']
         if 'user' in st.session_state:
             del st.session_state['user']
     
     def require_auth(self, redirect_to_login: bool = True) -> bool:
-        """Require authentication to access a page"""
+        """Exigir autenticação para acessar uma página"""
         if not self.is_authenticated():
             if redirect_to_login:
                 st.warning("Acesso não autorizado. Faça login para continuar.")
@@ -120,7 +120,7 @@ class AuthManager:
         return True
     
     def show_login_form(self):
-        """Display login form"""
+        """Exibir formulário de login"""
         st.markdown("### 🔐 Login Administrativo")
         
         with st.form("login_form"):
@@ -150,14 +150,14 @@ class AuthManager:
                 st.rerun()
     
     def show_user_management(self):
-        """Display user management interface (admin only)"""
+        """Exibir interface de gerenciamento de usuários (apenas admin)"""
         current_user = self.get_current_user()
         if not current_user:
             return
         
         st.subheader("👥 Gerenciamento de Usuários")
         
-        # Create new user form
+        # Criar formulário de novo usuário
         with st.expander("Criar Novo Usuário"):
             with st.form("create_user_form"):
                 new_email = st.text_input("Email do novo usuário")
@@ -172,11 +172,11 @@ class AuthManager:
                     else:
                         st.error("Por favor, preencha todos os campos.")
         
-        # List existing users
+        # Listar usuários existentes
         self._show_user_list()
     
     def _show_user_list(self):
-        """Show list of existing users"""
+        """Mostrar lista de usuários existentes"""
         conn = self.get_connection()
         if not conn:
             return

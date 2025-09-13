@@ -9,7 +9,7 @@ import io
 import os
 from pathlib import Path
 
-# Import custom modules
+# Importar módulos personalizados
 from database import DatabaseManager
 from auth import AuthManager
 from components.lab_results import LabResultsComponent
@@ -17,7 +17,7 @@ from components.timeline import TimelineComponent
 from components.comparisons import ComparisonComponent
 from utils import format_date, convert_units
 
-# Page configuration
+# Configuração da página
 st.set_page_config(
     page_title="Prontuário Luna",
     page_icon="🐕",
@@ -25,7 +25,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Initialize database and auth
+# Inicializar banco de dados e autenticação
 @st.cache_resource
 def init_database():
     return DatabaseManager()
@@ -37,7 +37,7 @@ def init_auth():
 db = init_database()
 auth = init_auth()
 
-# Custom CSS for styling
+# CSS personalizado para estilização
 st.markdown("""
 <style>
     .main-header {
@@ -119,7 +119,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def render_header():
-    """Render the main header with patient information"""
+    """Renderizar o cabeçalho principal com informações do paciente"""
     st.markdown('<div class="main-header">', unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([2, 3, 2])
@@ -128,12 +128,12 @@ def render_header():
         st.markdown("# 🐕 Prontuário Luna")
         st.markdown("*Deus opera milagres*")
         
-        # Patient info section
+        # Seção de informações do paciente
         patient_info = db.get_patient_info()
         if patient_info:
             st.markdown(f"**Paciente:** {patient_info.get('name', 'Luna Princess Mendes Guimarães')}")
             
-            # Display photos if available
+            # Exibir fotos se disponíveis
             photos = db.get_patient_photos()
             if photos:
                 col_photo1, col_photo2, col_photo3 = st.columns([1, 2, 1])
@@ -152,24 +152,24 @@ def render_header():
     st.markdown('</div>', unsafe_allow_html=True)
 
 def main():
-    """Main application logic"""
+    """Lógica principal da aplicação"""
     
-    # Check if accessing admin route
+    # Verificar se está acessando rota administrativa
     query_params = st.query_params
     if query_params.get('page') == 'admin':
-        # Import and run admin page
+        # Importar e executar página administrativa
         from pages.admin import run_admin_page
         run_admin_page(db, auth)
         return
     
-    # Initialize session state
+    # Inicializar estado da sessão
     if 'current_tab' not in st.session_state:
         st.session_state.current_tab = 'complete_history'
     
-    # Render header
+    # Renderizar cabeçalho
     render_header()
     
-    # Navigation tabs
+    # Abas de navegação
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -188,7 +188,7 @@ def main():
         if st.button("💊 Histórico de Medicamentos", key="tab_medications"):
             st.session_state.current_tab = 'medications'
     
-    # Render content based on selected tab
+    # Renderizar conteúdo baseado na aba selecionada
     if st.session_state.current_tab == 'complete_history':
         render_complete_history()
     elif st.session_state.current_tab == 'comparison':
@@ -198,20 +198,20 @@ def main():
     elif st.session_state.current_tab == 'medications':
         render_medications_tab()
     
-    # Admin access link (discrete)
+    # Link de acesso administrativo (discreto)
     st.markdown("---")
     if st.button("🔐 Acesso Administrativo", help="Clique para acessar a área administrativa"):
         st.query_params.page = 'admin'
         st.rerun()
 
 def render_complete_history():
-    """Render the complete lab results history table"""
+    """Renderizar a tabela completa do histórico de resultados laboratoriais"""
     st.header("📊 Histórico Completo de Exames")
     
     lab_component = LabResultsComponent(db)
     lab_component.render()
     
-    # Export options
+    # Opções de exportação
     col1, col2 = st.columns(2)
     with col1:
         if st.button("📥 Exportar Tabela (CSV)"):
@@ -226,25 +226,25 @@ def render_complete_history():
     
     with col2:
         if st.button("📄 Exportar Prontuário (PDF)"):
-            # This would generate a complete medical record PDF
+            # Isto geraria um PDF de prontuário médico completo
             st.info("Função de exportação de PDF será implementada.")
 
 def render_comparison_tab():
-    """Render the comparison and charting interface"""
+    """Renderizar a interface de comparação e gráficos"""
     st.header("📈 Comparativo de Exames")
     
     comparison_component = ComparisonComponent(db)
     comparison_component.render()
 
 def render_timeline_tab():
-    """Render the medical history timeline"""
+    """Renderizar a linha do tempo do histórico médico"""
     st.header("📅 História da Doença Atual")
     
     timeline_component = TimelineComponent(db)
     timeline_component.render()
 
 def render_medications_tab():
-    """Render the medication history timeline"""
+    """Renderizar a linha do tempo do histórico de medicamentos"""
     st.header("💊 Histórico de Medicamentos")
     
     medications = db.get_medication_history()
@@ -253,7 +253,7 @@ def render_medications_tab():
         st.info("Nenhum medicamento registrado ainda.")
         return
     
-    # Create medication timeline visualization
+    # Criar visualização da linha do tempo de medicamentos
     fig = go.Figure()
     
     colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD']
@@ -286,7 +286,7 @@ def render_medications_tab():
     
     st.plotly_chart(fig, use_container_width=True)
     
-    # Medication details table
+    # Tabela de detalhes dos medicamentos
     if medications:
         st.subheader("Detalhes dos Medicamentos")
         

@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 
 def format_date(date_obj: Any) -> str:
-    """Format date object to string"""
+    """Formatar objeto de data para string"""
     if isinstance(date_obj, str):
         return date_obj
     elif isinstance(date_obj, (date, datetime)):
@@ -17,11 +17,11 @@ def format_date(date_obj: Any) -> str:
     return str(date_obj)
 
 def parse_date(date_str: str) -> Optional[date]:
-    """Parse date string to date object"""
+    """Converter string de data para objeto de data"""
     if not date_str:
         return None
     
-    # Try different date formats
+    # Tentar diferentes formatos de data
     formats = ['%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%m/%d/%Y']
     
     for fmt in formats:
@@ -33,8 +33,8 @@ def parse_date(date_str: str) -> Optional[date]:
     return None
 
 def convert_units(value: float, from_unit: str, to_unit: str) -> Optional[float]:
-    """Convert between different units"""
-    # Basic unit conversion mappings
+    """Converter entre diferentes unidades"""
+    # Mapeamentos básicos de conversão de unidades
     conversions = {
         ('ng/dl', 'mmol/l'): 0.01,
         ('mg/dl', 'mmol/l'): 0.055,
@@ -48,15 +48,15 @@ def convert_units(value: float, from_unit: str, to_unit: str) -> Optional[float]
     if key in conversions:
         return value * conversions[key]
     
-    # If reverse conversion exists
+    # Se a conversão reversa existir
     reverse_key = (key[1], key[0])
     if reverse_key in conversions:
         return value / conversions[reverse_key]
     
-    return value  # Return original value if no conversion found
+    return value  # Retornar valor original se nenhuma conversão for encontrada
 
 def export_dataframe_to_csv(df: pd.DataFrame) -> str:
-    """Export DataFrame to CSV string"""
+    """Exportar DataFrame para string CSV"""
     if df.empty:
         return ""
     
@@ -65,7 +65,7 @@ def export_dataframe_to_csv(df: pd.DataFrame) -> str:
     return output.getvalue()
 
 def export_dataframe_to_excel(df: pd.DataFrame) -> bytes:
-    """Export DataFrame to Excel bytes"""
+    """Exportar DataFrame para bytes Excel"""
     if df.empty:
         return b""
     
@@ -75,7 +75,7 @@ def export_dataframe_to_excel(df: pd.DataFrame) -> bytes:
     return output.getvalue()
 
 def create_lab_results_chart(df: pd.DataFrame, test_names: List[str], dates: List[str]) -> go.Figure:
-    """Create interactive chart for lab results comparison"""
+    """Criar gráfico interativo para comparação de resultados laboratoriais"""
     fig = go.Figure()
     
     if df.empty or not test_names:
@@ -87,7 +87,7 @@ def create_lab_results_chart(df: pd.DataFrame, test_names: List[str], dates: Lis
         )
         return fig
     
-    # Filter data
+    # Filtrar dados
     filtered_df = df[df['test_name'].isin(test_names)]
     if dates and 'Todos' not in dates:
         filtered_df = filtered_df[filtered_df['test_date'].astype(str).isin(dates)]
@@ -124,7 +124,7 @@ def create_lab_results_chart(df: pd.DataFrame, test_names: List[str], dates: Lis
     return fig
 
 def create_timeline_visualization(events: List[Dict[str, Any]]) -> go.Figure:
-    """Create timeline visualization for medical events"""
+    """Criar visualização de linha do tempo para eventos médicos"""
     if not events:
         fig = go.Figure()
         fig.add_annotation(
@@ -135,7 +135,7 @@ def create_timeline_visualization(events: List[Dict[str, Any]]) -> go.Figure:
         )
         return fig
     
-    # Sort events by date
+    # Ordenar eventos por data
     sorted_events = sorted(events, key=lambda x: x['event_date'])
     
     dates = [event['event_date'] for event in sorted_events]
@@ -144,7 +144,7 @@ def create_timeline_visualization(events: List[Dict[str, Any]]) -> go.Figure:
     
     fig = go.Figure()
     
-    # Add timeline line
+    # Adicionar linha da timeline
     fig.add_trace(go.Scatter(
         x=dates,
         y=[1] * len(dates),
@@ -156,7 +156,7 @@ def create_timeline_visualization(events: List[Dict[str, Any]]) -> go.Figure:
         text=titles
     ))
     
-    # Add event markers with descriptions
+    # Adicionar marcadores de eventos com descrições
     for i, (date, title, desc) in enumerate(zip(dates, titles, descriptions)):
         fig.add_annotation(
             x=date,
@@ -185,19 +185,19 @@ def create_timeline_visualization(events: List[Dict[str, Any]]) -> go.Figure:
     return fig
 
 def validate_file_type(file, allowed_types: List[str]) -> bool:
-    """Validate if uploaded file is of allowed type"""
+    """Validar se o arquivo enviado é de tipo permitido"""
     if not file:
         return False
     
     file_type = file.type if hasattr(file, 'type') else ''
     file_name = file.name if hasattr(file, 'name') else ''
     
-    # Check by MIME type
+    # Verificar por tipo MIME
     for allowed_type in allowed_types:
         if allowed_type in file_type:
             return True
     
-    # Check by file extension
+    # Verificar por extensão de arquivo
     if file_name:
         extension = file_name.lower().split('.')[-1]
         extension_map = {
@@ -216,11 +216,11 @@ def validate_file_type(file, allowed_types: List[str]) -> bool:
     return False
 
 def format_medical_text(text: str) -> str:
-    """Format text for medical display"""
+    """Formatar texto para exibição médica"""
     if not text:
         return ""
     
-    # Basic formatting for medical text
+    # Formatação básica para texto médico
     formatted = text.replace('\n\n', '\n')
     formatted = formatted.replace('\n', '\n\n')
     
@@ -228,10 +228,10 @@ def format_medical_text(text: str) -> str:
 
 def generate_patient_summary(patient_info: Dict[str, Any], lab_results: pd.DataFrame, 
                            timeline_events: List[Dict], medications: List[Dict]) -> str:
-    """Generate a comprehensive patient summary"""
+    """Gerar um resumo abrangente do paciente"""
     summary_parts = []
     
-    # Patient information
+    # Informações do paciente
     if patient_info:
         summary_parts.append(f"**Paciente:** {patient_info.get('name', 'N/A')}")
         if patient_info.get('species'):
@@ -241,7 +241,7 @@ def generate_patient_summary(patient_info: Dict[str, Any], lab_results: pd.DataF
         if patient_info.get('birth_date'):
             summary_parts.append(f"**Data de Nascimento:** {format_date(patient_info['birth_date'])}")
     
-    # Lab results summary
+    # Resumo dos resultados laboratoriais
     if not lab_results.empty:
         total_tests = len(lab_results)
         unique_tests = lab_results['test_name'].nunique()
@@ -252,15 +252,15 @@ def generate_patient_summary(patient_info: Dict[str, Any], lab_results: pd.DataF
         summary_parts.append(f"- Tipos diferentes: {unique_tests}")
         summary_parts.append(f"- Período: {date_range}")
     
-    # Timeline events summary
+    # Resumo dos eventos da linha do tempo
     if timeline_events:
         summary_parts.append(f"\n**Eventos Clínicos:** {len(timeline_events)} eventos registrados")
         
-        # Most recent event
+        # Evento mais recente
         latest_event = max(timeline_events, key=lambda x: x['event_date'])
         summary_parts.append(f"- Último evento: {latest_event['title']} ({format_date(latest_event['event_date'])})")
     
-    # Medications summary
+    # Resumo dos medicamentos
     if medications:
         active_meds = [med for med in medications if not med.get('end_date')]
         summary_parts.append(f"\n**Medicamentos:**")
@@ -270,7 +270,7 @@ def generate_patient_summary(patient_info: Dict[str, Any], lab_results: pd.DataF
     return '\n'.join(summary_parts)
 
 def create_export_button(data: Any, filename: str, file_type: str = 'csv') -> bool:
-    """Create export button with download functionality"""
+    """Criar botão de exportação com funcionalidade de download"""
     if file_type == 'csv' and isinstance(data, pd.DataFrame):
         csv_data = export_dataframe_to_csv(data)
         if csv_data:
@@ -296,7 +296,7 @@ def create_export_button(data: Any, filename: str, file_type: str = 'csv') -> bo
     return False
 
 def safe_convert_to_numeric(value: Any) -> Optional[float]:
-    """Safely convert value to numeric"""
+    """Converter valor para numérico com segurança"""
     if value is None or value == '':
         return None
     
@@ -306,7 +306,7 @@ def safe_convert_to_numeric(value: Any) -> Optional[float]:
         return None
 
 def format_lab_value(value: Any, unit: str = '') -> str:
-    """Format lab value for display"""
+    """Formatar valor laboratorial para exibição"""
     if value is None:
         return "N/A"
     

@@ -5,43 +5,43 @@ import plotly.express as px
 from utils import format_date, format_lab_value, create_export_button
 
 class LabResultsComponent:
-    """Component for displaying lab results in table format"""
+    """Componente para exibir resultados laboratoriais em formato de tabela"""
     
     def __init__(self, db):
         self.db = db
     
     def render(self):
-        """Render the lab results table"""
+        """Renderizar a tabela de resultados laboratoriais"""
         
-        # Get lab results data
+        # Obter dados dos resultados laboratoriais
         lab_results = self.db.get_lab_results()
         
         if lab_results.empty:
             st.info("Nenhum exame laboratorial registrado ainda.")
             return
         
-        # Create pivot table (tests as rows, dates as columns)
+        # Criar tabela dinâmica (exames como linhas, datas como colunas)
         pivot_df = self._create_pivot_table(lab_results)
         
         if not pivot_df.empty:
             st.subheader("Tabela de Resultados Laboratoriais")
             
-            # Display controls
+            # Exibir controles
             self._render_table_controls(lab_results)
             
-            # Display the main table
+            # Exibir a tabela principal
             self._render_main_table(pivot_df, lab_results)
             
-            # Export options
+            # Opções de exportação
             self._render_export_options(lab_results, pivot_df)
     
     def _create_pivot_table(self, df):
-        """Create pivot table with tests as rows and dates as columns"""
+        """Criar tabela dinâmica com exames como linhas e datas como colunas"""
         try:
-            # Ensure test_date is datetime
+            # Garantir que test_date seja datetime
             df['test_date'] = pd.to_datetime(df['test_date'])
             
-            # Create pivot table
+            # Criar tabela dinâmica
             pivot_df = df.pivot_table(
                 index='test_name',
                 columns='test_date',
@@ -49,7 +49,7 @@ class LabResultsComponent:
                 aggfunc='first'
             )
             
-            # Sort columns (dates) in descending order
+            # Ordenar colunas (datas) em ordem decrescente
             pivot_df = pivot_df.reindex(sorted(pivot_df.columns, reverse=True), axis=1)
             
             return pivot_df
@@ -59,12 +59,12 @@ class LabResultsComponent:
             return pd.DataFrame()
     
     def _render_table_controls(self, lab_results):
-        """Render table controls (filters, search, etc.)"""
+        """Renderizar controles da tabela (filtros, busca, etc.)"""
         
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            # Test name filter
+            # Filtro de nome do exame
             available_tests = sorted(lab_results['test_name'].unique())
             selected_tests = st.multiselect(
                 "Filtrar exames:",
@@ -74,7 +74,7 @@ class LabResultsComponent:
             )
         
         with col2:
-            # Date range filter
+            # Filtro de intervalo de datas
             min_date = lab_results['test_date'].min()
             max_date = lab_results['test_date'].max()
             
@@ -87,11 +87,11 @@ class LabResultsComponent:
             )
         
         with col3:
-            # Display options
+            # Opções de exibição
             show_units = st.checkbox("Mostrar unidades", value=True)
             show_reference = st.checkbox("Mostrar valores de referência", value=False)
         
-        # Store filters in session state
+        # Armazenar filtros no estado da sessão
         st.session_state['lab_filters'] = {
             'selected_tests': selected_tests,
             'date_range': date_range,
@@ -100,7 +100,7 @@ class LabResultsComponent:
         }
     
     def _render_main_table(self, pivot_df, lab_results):
-        """Render the main lab results table"""
+        """Renderizar a tabela principal de resultados laboratoriais"""
         
         filters = st.session_state.get('lab_filters', {})
         
@@ -112,7 +112,7 @@ class LabResultsComponent:
         
         if filters.get('date_range') and len(filters['date_range']) == 2:
             start_date, end_date = filters['date_range']
-            # Filter columns by date range
+            # Filtrar colunas por intervalo de datas
             date_mask = (pivot_df.columns >= pd.Timestamp(start_date)) & (pivot_df.columns <= pd.Timestamp(end_date))
             filtered_df = filtered_df.loc[:, date_mask]
         
@@ -120,34 +120,34 @@ class LabResultsComponent:
             st.warning("Nenhum resultado encontrado com os filtros aplicados.")
             return
         
-        # Format the table for display
+        # Formatar a tabela para exibição
         display_df = self._format_table_for_display(filtered_df, lab_results, filters)
         
-        # Display with custom styling
+        # Exibir com estilo personalizado
         st.dataframe(
             display_df,
             use_container_width=True,
             height=min(600, len(display_df) * 35 + 100)
         )
         
-        # Display table statistics
+        # Exibir estatísticas da tabela
         self._render_table_stats(filtered_df, lab_results)
     
     def _format_table_for_display(self, pivot_df, lab_results, filters):
-        """Format the pivot table for better display"""
+        """Formatar a tabela dinâmica para melhor exibição"""
         
         display_df = pivot_df.copy()
         
-        # Format column headers (dates)
+        # Formatar cabeçalhos das colunas (datas)
         display_df.columns = [col.strftime('%d/%m/%Y') for col in display_df.columns]
         
-        # Format values with units if requested
+        # Formatar valores com unidades se solicitado
         if filters.get('show_units', True):
             for test_name in display_df.index:
-                # Get unit for this test
+                # Obter unidade para este exame
                 test_unit = lab_results[lab_results['test_name'] == test_name]['unit'].iloc[0] if not lab_results[lab_results['test_name'] == test_name].empty else ''
                 
-                # Format values with units
+                # Formatar valores com unidades
                 for col in display_df.columns:
                     value = display_df.loc[test_name, col]
                     if pd.notna(value):
@@ -155,14 +155,14 @@ class LabResultsComponent:
                     else:
                         display_df.loc[test_name, col] = "-"
         else:
-            # Format values without units
+            # Formatar valores sem unidades
             for col in display_df.columns:
                 display_df[col] = display_df[col].apply(lambda x: format_lab_value(x) if pd.notna(x) else "-")
         
         return display_df
     
     def _render_table_stats(self, filtered_df, lab_results):
-        """Render table statistics"""
+        """Renderizar estatísticas da tabela"""
         
         col1, col2, col3, col4 = st.columns(4)
         
@@ -177,20 +177,20 @@ class LabResultsComponent:
             st.metric("Total de Valores", int(total_values))
         
         with col4:
-            # Calculate completeness percentage
+            # Calcular porcentagem de completude
             total_possible = len(filtered_df.index) * len(filtered_df.columns)
             completeness = (total_values / total_possible * 100) if total_possible > 0 else 0
             st.metric("Completude", f"{completeness:.1f}%")
     
     def _render_export_options(self, lab_results, pivot_df):
-        """Render export options"""
+        """Renderizar opções de exportação"""
         
         st.subheader("Opções de Exportação")
         
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            # Export raw data
+            # Exportar dados brutos
             if st.button("📥 Exportar Dados Brutos (CSV)"):
                 csv_data = lab_results.to_csv(index=False)
                 st.download_button(
@@ -201,7 +201,7 @@ class LabResultsComponent:
                 )
         
         with col2:
-            # Export pivot table
+            # Exportar tabela dinâmica
             if st.button("📊 Exportar Tabela Pivô (CSV)"):
                 csv_data = pivot_df.to_csv()
                 st.download_button(
@@ -212,7 +212,7 @@ class LabResultsComponent:
                 )
         
         with col3:
-            # Export summary report
+            # Exportar relatório resumo
             if st.button("📄 Gerar Relatório Resumo"):
                 report = self._generate_summary_report(lab_results)
                 st.download_button(
@@ -223,7 +223,7 @@ class LabResultsComponent:
                 )
     
     def _generate_summary_report(self, lab_results):
-        """Generate a summary report of lab results"""
+        """Gerar um relatório resumido dos resultados laboratoriais"""
         
         report_lines = []
         report_lines.append("RELATÓRIO RESUMO - EXAMES LABORATORIAIS")
@@ -265,7 +265,7 @@ class LabResultsComponent:
         return "\n".join(report_lines)
     
     def export_to_csv(self):
-        """Export lab results to CSV"""
+        """Exportar resultados laboratoriais para CSV"""
         lab_results = self.db.get_lab_results()
         if not lab_results.empty:
             return lab_results.to_csv(index=False)
