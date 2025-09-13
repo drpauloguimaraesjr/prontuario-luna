@@ -712,16 +712,258 @@ def render_pdf_clinical_section(db, ai_processor, user_id):
 
 def render_video_input_section(db, ai_processor, user_id):
     """Renderizar seção de entrada de vídeo"""
-    st.subheader("Entrada de Vídeo")
+    st.subheader("🎬 Entrada de Vídeo")
+    
+    st.info("📱 Faça upload de vídeos com notas clínicas faladas. O áudio será extraído e transcrito automaticamente.")
+    
+    # Inicializar session state para persistir dados
+    if 'video_transcribed_text' not in st.session_state:
+        st.session_state.video_transcribed_text = None
+    if 'video_event_date' not in st.session_state:
+        st.session_state.video_event_date = date.today()
+    if 'video_filename' not in st.session_state:
+        st.session_state.video_filename = None
     
     uploaded_video = st.file_uploader(
         "Selecione arquivo de vídeo:",
-        type=['mp4', 'avi', 'mov'],
-        help="O áudio do vídeo será extraído e transcrito"
+        type=['mp4', 'avi', 'mov', 'wmv'],
+        help="O áudio do vídeo será extraído e transcrito usando IA"
     )
     
     if uploaded_video:
         st.video(uploaded_video)
         
-        if st.button("🔄 Processar Vídeo", type="primary"):
-            st.info("Processamento de vídeo não implementado ainda. Use a opção de áudio.")
+        # Informações do arquivo
+        file_details = {
+            "Nome": uploaded_video.name,
+            "Tamanho": f"{uploaded_video.size / 1024 / 1024:.2f} MB",
+            "Tipo": uploaded_video.type
+        }
+        
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            for key, value in file_details.items():
+                st.text(f"{key}: {value}")
+        
+        with col2:
+            # Usar session_state para persistir a data entre reruns
+            event_date = st.date_input(
+                "Data do evento:", 
+                value=st.session_state.video_event_date,
+                help="Data em que as notas clínicas foram registradas",
+                key="video_date_picker"
+            )
+            st.session_state.video_event_date = event_date
+        
+        # Verificar se o arquivo mudou
+        if uploaded_video.name != st.session_state.video_filename:
+            st.session_state.video_transcribed_text = None
+            st.session_state.video_filename = uploaded_video.name
+        
+        # Botão de processamento
+        if st.button("🔄 Processar Vídeo", type="primary", disabled=bool(st.session_state.video_transcribed_text)):
+            if uploaded_video.size == 0:
+                st.error("❌ Arquivo de vídeo vazio. Por favor, selecione um arquivo válido.")
+                return
+                
+            try:
+                with st.spinner("Extraindo e transcrevendo áudio do vídeo..."):
+                    # Reset file pointer to beginning
+                    uploaded_video.seek(0)
+                    video_bytes = uploaded_video.read()
+                    
+                    if not video_bytes:
+                        st.error("❌ Não foi possível ler o conteúdo do vídeo.")
+                        return
+                    
+                    transcribed_text = process_video_transcription(video_bytes, uploaded_video.name, ai_processor)
+                    
+                    if transcribed_text and transcribed_text.strip():
+                        # Salvar no session state
+                        st.session_state.video_transcribed_text = transcribed_text
+                        st.success("✅ Áudio transcrito com sucesso!")
+                        st.rerun()  # Rerun to show transcription
+                    else:
+                        st.error("❌ Não foi possível transcrever o áudio do vídeo ou o áudio está vazio.")
+                        st.info("💡 Verifique se o vídeo contém áudio claro e está em um formato suportado.")
+            
+            except Exception as e:
+                st.error(f"❌ Erro ao processar vídeo: {str(e)}")
+                st.info("💡 Verifique se o arquivo de vídeo contém áudio e está em um formato suportado.")
+        
+        # Exibir transcrição se disponível
+        if st.session_state.video_transcribed_text:
+            st.success("✅ Vídeo já foi transcrito!")
+            
+            # Exibir transcrição
+            with st.expander("📝 Ver Transcrição", expanded=True):
+                edited_text = st.text_area(
+                    "Texto transcrito (editável):",
+                    value=st.session_state.video_transcribed_text,
+                    height=200,
+                    key="video_transcription_editor"
+                )
+            
+            # Processar com IA
+            st.markdown("---")
+            
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                if st.button("🤖 Processar com IA", type="secondary"):
+                    if edited_text and edited_text.strip():
+                        process_clinical_text(edited_text, st.session_state.video_event_date, db, ai_processor, user_id)
+                    else:
+                        st.error("❌ Texto da transcrição está vazio.")
+            
+            with col2:
+                if st.button("🔄 Nova Transcrição"):
+                    st.session_state.video_transcribed_text = None
+                    st.session_state.video_filename = None
+                    st.rerun()
+
+def process_video_transcription(video_bytes: bytes, filename: str, ai_processor) -> str:
+    """
+    Extrair áudio do vídeo e transcrever usando OpenAI Whisper
+    """
+    if not video_bytes:
+        st.error("❌ Dados de vídeo vazios.")
+        return None
+        
+    temp_video_path = None
+    audio_path = None
+    
+    try:
+        import tempfile
+        import os
+        
+        # Criar nome de arquivo temporário seguro
+        safe_filename = "".join(c for c in filename if c.isalnum() or c in '._-')[:50]
+        
+        # Salvar vídeo temporariamente
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{safe_filename}") as temp_video:
+            temp_video.write(video_bytes)
+            temp_video_path = temp_video.name
+        
+        # Verificar se o arquivo foi criado corretamente
+        if not os.path.exists(temp_video_path) or os.path.getsize(temp_video_path) == 0:
+            st.error("❌ Erro ao criar arquivo temporário do vídeo.")
+            return None
+        
+        transcription = None
+        
+        try:
+            # Tentar transcrever diretamente o arquivo de vídeo
+            # OpenAI Whisper pode processar vídeo diretamente extraindo o áudio
+            with open(temp_video_path, 'rb') as video_file:
+                transcription = ai_processor.transcribe_audio(video_file)
+                
+            if transcription and transcription.strip():
+                return transcription
+                
+        except Exception as audio_error:
+            st.warning(f"⚠️ Transcrição direta falhou: {str(audio_error)[:100]}...")
+            st.info("🔄 Tentando extrair áudio separadamente...")
+            
+            # Tentar extrair áudio primeiro (se ffmpeg estiver disponível)
+            try:
+                audio_path = extract_audio_from_video(temp_video_path)
+                if audio_path and os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+                    with open(audio_path, 'rb') as audio_file:
+                        transcription = ai_processor.transcribe_audio(audio_file)
+                    
+                    if transcription and transcription.strip():
+                        return transcription
+                else:
+                    st.warning("⚠️ Não foi possível extrair áudio do vídeo.")
+                
+            except Exception as extract_error:
+                st.warning(f"⚠️ Erro na extração de áudio: {str(extract_error)[:100]}...")
+        
+        # Se chegou até aqui, nenhum método funcionou
+        st.error("❌ Falha em todos os métodos de transcrição.")
+        return None
+                
+    except Exception as e:
+        st.error(f"❌ Erro crítico no processamento do vídeo: {str(e)}")
+        return None
+        
+    finally:
+        # Limpar arquivos temporários
+        try:
+            if temp_video_path and os.path.exists(temp_video_path):
+                os.unlink(temp_video_path)
+        except Exception as cleanup_error:
+            st.warning(f"⚠️ Erro ao limpar arquivo de vídeo temporário: {cleanup_error}")
+            
+        try:
+            if audio_path and os.path.exists(audio_path):
+                os.unlink(audio_path)
+        except Exception as cleanup_error:
+            st.warning(f"⚠️ Erro ao limpar arquivo de áudio temporário: {cleanup_error}")
+
+def extract_audio_from_video(video_path: str) -> str:
+    """
+    Extrair áudio de vídeo usando ffmpeg (se disponível)
+    """
+    audio_path = None
+    
+    try:
+        import subprocess
+        import tempfile
+        import os
+        
+        # Verificar se o arquivo de vídeo existe
+        if not os.path.exists(video_path):
+            st.warning("⚠️ Arquivo de vídeo não encontrado.")
+            return None
+            
+        # Criar arquivo temporário para áudio
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as temp_audio:
+            audio_path = temp_audio.name
+        
+        # Tentar usar ffmpeg para extrair áudio
+        cmd = [
+            'ffmpeg', 
+            '-i', video_path, 
+            '-vn',  # Sem vídeo
+            '-acodec', 'mp3',  # Codec de áudio
+            '-ab', '192k',  # Bitrate de áudio
+            '-ar', '44100',  # Taxa de amostragem
+            '-y',  # Sobrescrever arquivo existente
+            '-loglevel', 'error',  # Reduzir logs verbosos
+            audio_path
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)  # Timeout de 60s
+        
+        if result.returncode == 0 and os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+            return audio_path
+        else:
+            if result.stderr:
+                st.warning(f"⚠️ ffmpeg erro: {result.stderr[:200]}...")
+            else:
+                st.warning("⚠️ ffmpeg não conseguiu extrair áudio.")
+            
+            # Limpar arquivo inválido
+            if audio_path and os.path.exists(audio_path):
+                os.unlink(audio_path)
+            return None
+            
+    except subprocess.TimeoutExpired:
+        st.warning("⚠️ Timeout na extração de áudio (>60s).")
+        if audio_path and os.path.exists(audio_path):
+            os.unlink(audio_path)
+        return None
+        
+    except FileNotFoundError:
+        st.warning("⚠️ ffmpeg não está instalado. Usando transcrição direta.")
+        return None
+        
+    except Exception as e:
+        st.warning(f"⚠️ Erro na extração de áudio: {str(e)[:100]}...")
+        if audio_path and os.path.exists(audio_path):
+            try:
+                os.unlink(audio_path)
+            except:
+                pass  # Ignore cleanup errors
+        return None
