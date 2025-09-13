@@ -138,16 +138,16 @@ def render_header():
             if photos:
                 col_photo1, col_photo2, col_photo3 = st.columns([1, 2, 1])
                 with col_photo2:
-                    if photos.get('luna_photo'):
-                        st.image(photos['luna_photo'], width=120, caption="Luna")
+                    if photos.get('luna'):
+                        st.image(photos['luna'], width=120, caption="Luna")
                 
                 col_tutor1, col_tutor2 = st.columns(2)
                 with col_tutor1:
-                    if photos.get('tutor1_photo'):
-                        st.image(photos['tutor1_photo'], width=60, caption="Paulo")
+                    if photos.get('tutor1'):
+                        st.image(photos['tutor1'], width=60, caption="Paulo")
                 with col_tutor2:
-                    if photos.get('tutor2_photo'):
-                        st.image(photos['tutor2_photo'], width=60, caption="Júlia")
+                    if photos.get('tutor2'):
+                        st.image(photos['tutor2'], width=60, caption="Júlia")
     
     st.markdown('</div>', unsafe_allow_html=True)
 

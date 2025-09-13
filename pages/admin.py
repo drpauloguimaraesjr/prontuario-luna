@@ -453,7 +453,24 @@ def render_media_section(db, user_id):
     """Renderizar seção de upload de mídia"""
     st.header("📸 Fotos e Mídia")
     
+    # Mostrar fotos atuais
+    current_photos = db.get_patient_photos()
+    if current_photos:
+        st.subheader("Fotos Atuais")
+        photo_cols = st.columns(3)
+        
+        photo_names = {"luna": "Luna", "tutor1": "Paulo", "tutor2": "Júlia"}
+        for i, (photo_type, name) in enumerate(photo_names.items()):
+            with photo_cols[i]:
+                if photo_type in current_photos:
+                    st.image(current_photos[photo_type], width=150, caption=f"{name} (atual)")
+                else:
+                    st.info(f"Nenhuma foto de {name}")
+        
+        st.markdown("---")
+    
     # Seções de upload de fotos
+    st.subheader("Upload de Novas Fotos")
     col1, col2, col3 = st.columns(3)
     
     with col1:
@@ -465,8 +482,15 @@ def render_media_section(db, user_id):
         )
         
         if luna_photo and st.button("Salvar Foto da Luna"):
-            # Lógica para salvar foto da Luna aqui
-            st.success("Foto da Luna salva!")
+            try:
+                photo_bytes = luna_photo.read()
+                if db.save_patient_photo("luna", photo_bytes, luna_photo.name):
+                    st.success("Foto da Luna salva com sucesso!")
+                    st.rerun()  # Recarregar para mostrar a nova foto
+                else:
+                    st.error("Erro ao salvar foto da Luna")
+            except Exception as e:
+                st.error(f"Erro ao processar foto: {e}")
     
     with col2:
         st.subheader("Foto do Tutor 1")
@@ -477,8 +501,15 @@ def render_media_section(db, user_id):
         )
         
         if tutor1_photo and st.button("Salvar Foto Paulo"):
-            # Lógica para salvar foto do tutor1 aqui
-            st.success("Foto do Paulo salva!")
+            try:
+                photo_bytes = tutor1_photo.read()
+                if db.save_patient_photo("tutor1", photo_bytes, tutor1_photo.name):
+                    st.success("Foto do Paulo salva com sucesso!")
+                    st.rerun()  # Recarregar para mostrar a nova foto
+                else:
+                    st.error("Erro ao salvar foto do Paulo")
+            except Exception as e:
+                st.error(f"Erro ao processar foto: {e}")
     
     with col3:
         st.subheader("Foto do Tutor 2")
@@ -489,8 +520,15 @@ def render_media_section(db, user_id):
         )
         
         if tutor2_photo and st.button("Salvar Foto Júlia"):
-            # Lógica para salvar foto do tutor2 aqui
-            st.success("Foto da Júlia salva!")
+            try:
+                photo_bytes = tutor2_photo.read()
+                if db.save_patient_photo("tutor2", photo_bytes, tutor2_photo.name):
+                    st.success("Foto da Júlia salva com sucesso!")
+                    st.rerun()  # Recarregar para mostrar a nova foto
+                else:
+                    st.error("Erro ao salvar foto da Júlia")
+            except Exception as e:
+                st.error(f"Erro ao processar foto: {e}")
 
 def render_settings_section(db):
     """Renderizar seção de configurações do sistema"""

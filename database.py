@@ -395,13 +395,50 @@ class DatabaseManager:
             
             photos = {}
             for row in rows:
-                if row[1]:  # If photo_data exists
+                if row[1]:  # Se os dados da foto existem
                     photos[row[0]] = row[1]
             
             return photos
         except Exception as e:
             st.error(f"Erro ao buscar fotos do paciente: {e}")
             return {}
+        finally:
+            conn.close()
+    
+    def save_patient_photo(self, photo_type: str, photo_data: bytes, filename: str) -> bool:
+        """Salvar foto do paciente (Luna, tutor1, tutor2)"""
+        conn = self.get_connection()
+        if not conn:
+            return False
+        
+        try:
+            cursor = conn.cursor()
+            
+            # Verificar se já existe uma foto do mesmo tipo
+            cursor.execute("SELECT id FROM patient_photos WHERE photo_type = %s", (photo_type,))
+            existing = cursor.fetchone()
+            
+            if existing:
+                # Atualizar foto existente
+                cursor.execute("""
+                    UPDATE patient_photos 
+                    SET photo_data = %s, filename = %s, uploaded_at = CURRENT_TIMESTAMP
+                    WHERE photo_type = %s
+                """, (photo_data, filename, photo_type))
+            else:
+                # Inserir nova foto
+                cursor.execute("""
+                    INSERT INTO patient_photos (photo_type, photo_data, filename)
+                    VALUES (%s, %s, %s)
+                """, (photo_type, photo_data, filename))
+            
+            conn.commit()
+            cursor.close()
+            return True
+            
+        except Exception as e:
+            st.error(f"Erro ao salvar foto {photo_type}: {e}")
+            return False
         finally:
             conn.close()
     
