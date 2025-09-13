@@ -226,8 +226,29 @@ def render_complete_history():
     
     with col2:
         if st.button("📄 Exportar Prontuário (PDF)"):
-            # Isto geraria um PDF de prontuário médico completo
-            st.info("Função de exportação de PDF será implementada.")
+            try:
+                from pdf_generator import MedicalRecordPDFGenerator
+                
+                with st.spinner("Gerando prontuário em PDF..."):
+                    pdf_generator = MedicalRecordPDFGenerator(db)
+                    pdf_bytes = pdf_generator.generate_complete_medical_record()
+                    
+                    # Nome do arquivo com data
+                    filename = f"prontuario_luna_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+                    
+                    st.download_button(
+                        label="📥 Baixar Prontuário Completo",
+                        data=pdf_bytes,
+                        file_name=filename,
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+                    
+                    st.success("✅ Prontuário PDF gerado com sucesso!")
+                    
+            except Exception as e:
+                st.error(f"Erro ao gerar PDF: {e}")
+                st.info("Verifique se todos os dados necessários estão disponíveis.")
 
 def render_comparison_tab():
     """Renderizar a interface de comparação e gráficos"""
