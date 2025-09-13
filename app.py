@@ -37,6 +37,16 @@ def init_auth():
 db = init_database()
 auth = init_auth()
 
+# Verificar se é um link compartilhado
+query_params = st.query_params
+share_id = query_params.get('share')
+
+if share_id:
+    # Renderizar conteúdo compartilhado
+    from shareable_links import render_shared_content
+    render_shared_content(share_id, db)
+    st.stop()  # Para execução após renderizar conteúdo compartilhado
+
 # CSS personalizado para estilização
 st.markdown("""
 <style>

@@ -201,7 +201,7 @@ class ComparisonComponent:
         st.plotly_chart(fig, use_container_width=True)
         
         # Opções de exportação do gráfico
-        self._render_chart_export_options(fig)
+        self._render_chart_export_options(fig, selected_tests, chart_type, show_markers, show_trend, normalize_values)
     
     def _create_comparison_chart(self, lab_results: pd.DataFrame, selected_tests: List[str], 
                                chart_type: str, show_markers: bool, show_trend: bool,
@@ -335,17 +335,19 @@ class ComparisonComponent:
         
         return fig
     
-    def _render_chart_export_options(self, fig: go.Figure):
+    def _render_chart_export_options(self, fig: go.Figure, selected_tests=None, chart_type=None, 
+                                    show_markers=None, show_trend=None, normalize_values=None):
         """Renderizar opções de exportação do gráfico"""
         
-        st.markdown("**Exportar Gráfico:**")
+        st.markdown("---")
+        st.markdown("**🔗 Compartilhar e Exportar:**")
         
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            if st.button("📋 Copiar Gráfico"):
-                # Isto mostrará um modal com opções de cópia
-                self._show_copy_modal(fig)
+            # Link compartilhável
+            if st.button("🔗 Criar Link"):
+                self._create_shareable_link(selected_tests, chart_type, show_markers, show_trend, normalize_values)
         
         with col2:
             # Exportar como PNG
@@ -368,6 +370,11 @@ class ComparisonComponent:
                     file_name=f"comparativo_exames_{datetime.now().strftime('%Y%m%d_%H%M')}.html",
                     mime="text/html"
                 )
+        
+        with col4:
+            # Copiar gráfico
+            if st.button("📋 Copiar"):
+                self._show_copy_modal(fig)
     
     def _show_copy_modal(self, fig: go.Figure):
         """Mostrar modal para copiar gráfico"""
@@ -408,13 +415,82 @@ class ComparisonComponent:
             
             with col2:
                 if st.button("🔗 Copiar Link Compartilhável"):
-                    # Em uma implementação real, você geraria um link compartilhável
-                    share_url = f"https://seu-dominio.com/share/chart/{datetime.now().strftime('%Y%m%d_%H%M')}"
-                    st.code(share_url)
-                    st.info("Link gerado para compartilhamento (funcionalidade simulada)")
+                    st.info("🔗 Use o botão 'Criar Link' na seção de exportação para gerar links compartilháveis")
+    
+    def _create_shareable_link(self, selected_tests, chart_type, show_markers, show_trend, normalize_values):
+        """Criar link compartilhável para o gráfico comparativo"""
+        
+        try:
+            from shareable_links import ShareableLinkManager
             
-            if st.button("❌ Fechar"):
-                st.rerun()
+            # Configuração do gráfico
+            chart_config = {
+                'selected_tests': selected_tests or [],
+                'chart_settings': {
+                    'chart_type': chart_type,
+                    'show_markers': show_markers,
+                    'show_trend': show_trend,
+                    'normalize_values': normalize_values
+                },
+                'date_range': {
+                    'start': None,  # Pode ser expandido para incluir filtros de data
+                    'end': None
+                }
+            }
+            
+            # Criar o link
+            link_manager = ShareableLinkManager(self.db)
+            link_info = link_manager.generate_comparison_link(
+                selected_tests=selected_tests or [],
+                date_range={'start': None, 'end': None},
+                chart_settings=chart_config['chart_settings']
+            )
+            
+            # Exibir o link
+            with st.expander("🔗 Link Compartilhável Criado!", expanded=True):
+                st.success("✅ Link criado com sucesso!")
+                
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    st.text_input(
+                        "URL Compartilhável:",
+                        value=link_info['url'],
+                        disabled=True,
+                        key=f"share_url_{link_info['share_id']}"
+                    )
+                
+                with col2:
+                    # Botão para copiar URL
+                    if st.button("📋 Copiar", key=f"copy_url_{link_info['share_id']}"):
+                        # JavaScript para copiar URL
+                        copy_js = f"""
+                        <script>
+                        navigator.clipboard.writeText('{link_info["url"]}').then(function() {{
+                            alert('URL copiada para área de transferência!');
+                        }});
+                        </script>
+                        """
+                        st.html(copy_js)
+                        st.success("URL copiada!")
+                
+                st.info(f"⏰ **Expira em:** {link_info['expires_at']}")
+                st.info(f"🆔 **ID do Link:** {link_info['share_id']}")
+                
+                # Gerar QR Code se possível
+                try:
+                    qr_data = link_manager.generate_qr_code(link_info['url'])
+                    if qr_data != link_info['url']:  # Se conseguiu gerar QR code
+                        st.markdown("**📱 QR Code:**")
+                        st.markdown(f"![QR Code](data:image/png;base64,{qr_data})")
+                    else:
+                        st.markdown("**📱 Código QR:** Instale a biblioteca qrcode para gerar códigos QR")
+                except Exception as e:
+                    st.warning(f"Não foi possível gerar QR code: {e}")
+        
+        except Exception as e:
+            st.error(f"Erro ao criar link compartilhável: {e}")
+            st.info("💡 Verifique se o banco de dados está configurado corretamente.")
     
     def _render_comparison_table(self, lab_results: pd.DataFrame):
         """Renderizar tabela de dados de comparação"""
