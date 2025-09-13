@@ -16,6 +16,7 @@ dependencies = [
     "psycopg2-binary>=2.9.10",
     "pypdf2>=3.0.1",
     "python-multipart>=0.0.20",
+    "qrcode[pil]>=8.2",
     "reportlab>=4.4.3",
     "streamlit>=1.49.1",
 ]

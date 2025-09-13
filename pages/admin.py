@@ -43,6 +43,7 @@ def run_admin_page(db, auth):
             "📝 Prontuário Clínico",
             "💊 Medicamentos",
             "📸 Fotos e Mídia",
+            "🔗 Links Compartilháveis",
             "👥 Usuários",
             "⚙️ Configurações"
         ]
@@ -63,6 +64,8 @@ def run_admin_page(db, auth):
         render_medications_section(db, ai_processor, current_user['id'])
     elif admin_tab == "📸 Fotos e Mídia":
         render_media_section(db, current_user['id'])
+    elif admin_tab == "🔗 Links Compartilháveis":
+        render_shareable_links_section(db)
     elif admin_tab == "👥 Usuários":
         auth.show_user_management()
     elif admin_tab == "⚙️ Configurações":
@@ -967,3 +970,135 @@ def extract_audio_from_video(video_path: str) -> str:
             except:
                 pass  # Ignore cleanup errors
         return None
+
+def render_shareable_links_section(db):
+    """Renderizar seção de gerenciamento de links compartilháveis"""
+    st.header("🔗 Gerenciamento de Links Compartilháveis")
+    
+    try:
+        from shareable_links import ShareableLinkManager
+        
+        link_manager = ShareableLinkManager(db)
+        
+        # Seção de limpeza automática
+        col1, col2, col3 = st.columns([2, 1, 1])
+        
+        with col1:
+            st.subheader("📋 Links Ativos")
+        
+        with col2:
+            if st.button("🧹 Limpar Expirados"):
+                deleted_count = link_manager.cleanup_expired_links()
+                if deleted_count > 0:
+                    st.success(f"✅ {deleted_count} links expirados removidos!")
+                else:
+                    st.info("ℹ️ Nenhum link expirado encontrado")
+        
+        with col3:
+            if st.button("🔄 Atualizar"):
+                st.rerun()
+        
+        # Listar links compartilhados ativos
+        shared_links = link_manager.list_shared_links()
+        
+        if shared_links:
+            st.markdown("---")
+            
+            for i, link in enumerate(shared_links):
+                with st.expander(f"🔗 {link['type'].title()} - {link['share_id']}", expanded=False):
+                    col1, col2, col3 = st.columns([2, 1, 1])
+                    
+                    with col1:
+                        st.write(f"**Tipo:** {link['type'].title()}")
+                        if link['chart_type']:
+                            st.write(f"**Gráfico:** {link['chart_type'].title()}")
+                        if link['report_type']:
+                            st.write(f"**Relatório:** {link['report_type'].title()}")
+                        
+                        # Handle both string and datetime objects
+                        created_at = link['created_at']
+                        if isinstance(created_at, str):
+                            created_at = datetime.fromisoformat(created_at)
+                        
+                        expires_at = link['expires_at']
+                        if isinstance(expires_at, str):
+                            expires_at = datetime.fromisoformat(expires_at)
+                        
+                        st.write(f"**Criado:** {created_at.strftime('%d/%m/%Y %H:%M')}")
+                        st.write(f"**Expira:** {expires_at.strftime('%d/%m/%Y %H:%M')}")
+                        st.write(f"**Acessos:** {link['access_count']}")
+                    
+                    with col2:
+                        # URL do link
+                        share_url = f"{link_manager.base_url}/?share={link['share_id']}"
+                        st.text_input(
+                            "URL:",
+                            value=share_url,
+                            disabled=True,
+                            key=f"url_{link['share_id']}",
+                            label_visibility="collapsed"
+                        )
+                    
+                    with col3:
+                        if st.button("🗑️ Revogar", key=f"revoke_{link['share_id']}"):
+                            if link_manager.revoke_link(link['share_id']):
+                                st.success("✅ Link revogado!")
+                                st.rerun()
+                            else:
+                                st.error("❌ Erro ao revogar link")
+                        
+                        if st.button("📋 Copiar URL", key=f"copy_{link['share_id']}"):
+                            # JavaScript para copiar URL
+                            copy_js = f"""
+                            <script>
+                            navigator.clipboard.writeText('{share_url}').then(function() {{
+                                alert('URL copiada!');
+                            }});
+                            </script>
+                            """
+                            st.html(copy_js)
+                            st.success("URL copiada!")
+        
+        else:
+            st.info("📝 Nenhum link compartilhável ativo no momento.")
+            st.markdown("""
+            **Como criar links compartilháveis:**
+            1. Vá para a seção de gráficos comparativos na aplicação principal
+            2. Configure seus gráficos e clique em "🔗 Criar Link" 
+            3. O link aparecerá aqui para gerenciamento
+            """)
+        
+        # Estatísticas
+        st.markdown("---")
+        st.subheader("📊 Estatísticas")
+        
+        if shared_links:
+            stats_col1, stats_col2, stats_col3, stats_col4 = st.columns(4)
+            
+            total_links = len(shared_links)
+            total_accesses = sum(link['access_count'] for link in shared_links)
+            chart_links = len([l for l in shared_links if l['type'] == 'chart'])
+            report_links = len([l for l in shared_links if l['type'] == 'report'])
+            
+            with stats_col1:
+                st.metric("Total de Links", total_links)
+            
+            with stats_col2:
+                st.metric("Total de Acessos", total_accesses)
+            
+            with stats_col3:
+                st.metric("Links de Gráficos", chart_links)
+            
+            with stats_col4:
+                st.metric("Links de Relatórios", report_links)
+        
+        else:
+            st.info("📊 Estatísticas aparecerão quando houver links ativos")
+    
+    except ImportError:
+        st.error("❌ Módulo de links compartilháveis não encontrado")
+        st.info("💡 Verifique se o arquivo shareable_links.py está no diretório correto")
+    
+    except Exception as e:
+        st.error(f"❌ Erro ao carregar seção de links compartilháveis: {e}")
+        st.info("💡 Verifique se o banco de dados está funcionando corretamente")
