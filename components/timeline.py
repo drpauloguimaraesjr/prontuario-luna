@@ -6,57 +6,57 @@ import pandas as pd
 from utils import format_date
 
 class TimelineComponent:
-    """Component for displaying medical timeline (História da Doença Atual)"""
+    """Componente para exibir linha do tempo médica (História da Doença Atual)"""
     
     def __init__(self, db):
         self.db = db
         self.current_event_index = 0
     
     def render(self):
-        """Render the timeline interface"""
+        """Renderizar a interface da linha do tempo"""
         
-        # Get timeline events
+        # Obter eventos da linha do tempo
         events = self.db.get_medical_timeline()
         
         if not events:
             st.info("Nenhum evento clínico registrado ainda.")
             return
         
-        # Sort events by date
+        # Ordenar eventos por data
         sorted_events = sorted(events, key=lambda x: x['event_date'])
         
-        # Initialize session state for navigation
+        # Inicializar estado da sessão para navegação
         if 'timeline_index' not in st.session_state:
             st.session_state.timeline_index = 0
         
-        # Ensure index is within bounds
+        # Garantir que o índice esteja dentro dos limites
         if st.session_state.timeline_index >= len(sorted_events):
             st.session_state.timeline_index = 0
         
-        # Render timeline visualization
+        # Renderizar visualização da linha do tempo
         self._render_timeline_chart(sorted_events)
         
-        # Render timeline navigation
+        # Renderizar navegação da linha do tempo
         self._render_timeline_navigation(sorted_events)
         
-        # Render current event details
+        # Renderizar detalhes do evento atual
         if sorted_events:
             current_event = sorted_events[st.session_state.timeline_index]
             self._render_event_details(current_event)
     
     def _render_timeline_chart(self, events):
-        """Render the interactive timeline chart"""
+        """Renderizar o gráfico interativo da linha do tempo"""
         
         if not events:
             return
         
-        # Create timeline visualization
+        # Criar visualização da linha do tempo
         fig = go.Figure()
         
         dates = [event['event_date'] for event in events]
         titles = [event['title'] for event in events]
         
-        # Add main timeline line
+        # Adicionar linha principal da timeline
         fig.add_trace(go.Scatter(
             x=dates,
             y=[1] * len(dates),
@@ -66,7 +66,7 @@ class TimelineComponent:
             hoverinfo='skip'
         ))
         
-        # Add event markers
+        # Adicionar marcadores de eventos
         colors = ['white' if i != st.session_state.timeline_index else '#FF1493' 
                  for i in range(len(events))]
         
@@ -84,12 +84,12 @@ class TimelineComponent:
             showlegend=False
         ))
         
-        # Highlight current event
+        # Destacar evento atual
         if 0 <= st.session_state.timeline_index < len(events):
             current_date = dates[st.session_state.timeline_index]
             current_title = titles[st.session_state.timeline_index]
             
-            # Add vertical line for current event
+            # Adicionar linha vertical para evento atual
             fig.add_vline(
                 x=current_date,
                 line=dict(color='white', width=3, dash='solid'),
@@ -97,7 +97,7 @@ class TimelineComponent:
                 annotation_position="top"
             )
         
-        # Update layout
+        # Atualizar layout
         fig.update_layout(
             title="Linha do Tempo - História da Doença Atual",
             xaxis_title="Data",
@@ -116,12 +116,12 @@ class TimelineComponent:
         st.plotly_chart(fig, use_container_width=True)
     
     def _render_timeline_navigation(self, events):
-        """Render timeline navigation controls"""
+        """Renderizar controles de navegação da linha do tempo"""
         
         if not events:
             return
         
-        # Navigation buttons
+        # Botões de navegação
         col1, col2, col3, col4, col5 = st.columns([1, 1, 2, 1, 1])
         
         with col1:
@@ -135,7 +135,7 @@ class TimelineComponent:
                 st.rerun()
         
         with col3:
-            # Event selector
+            # Seletor de evento
             current_event = events[st.session_state.timeline_index]
             event_options = [f"{format_date(event['event_date'])} - {event['title']}" 
                            for event in events]
@@ -162,33 +162,33 @@ class TimelineComponent:
                 st.session_state.timeline_index = len(events) - 1
                 st.rerun()
         
-        # Progress indicator
+        # Indicador de progresso
         progress = (st.session_state.timeline_index + 1) / len(events)
         st.progress(progress, text=f"Evento {st.session_state.timeline_index + 1} de {len(events)}")
     
     def _render_event_details(self, event):
-        """Render details for the current event"""
+        """Renderizar detalhes do evento atual"""
         
-        # Upper section: Event summary
+        # Seção superior: Resumo do evento
         st.markdown("---")
         
-        # Event header with date and title
+        # Cabeçalho do evento com data e título
         col1, col2 = st.columns([2, 1])
         with col1:
             st.markdown(f"### 📅 {format_date(event['event_date'])}")
             st.markdown(f"**{event['title']}**")
         
         with col2:
-            # Quick stats or actions
+            # Estatísticas rápidas ou ações
             if event.get('symptoms'):
                 st.metric("Sintomas Registrados", len(event['symptoms']))
         
-        # Brief description/summary
+        # Descrição/resumo breve
         if event.get('description'):
             st.markdown("**Resumo do dia:**")
             st.info(event['description'])
         
-        # Symptoms if available
+        # Sintomas se disponíveis
         if event.get('symptoms'):
             st.markdown("**Sintomas identificados:**")
             cols = st.columns(min(3, len(event['symptoms'])))
@@ -196,7 +196,7 @@ class TimelineComponent:
                 with cols[i % 3]:
                     st.markdown(f"• {symptom}")
         
-        # Lower section: Detailed information
+        # Seção inferior: Informações detalhadas
         st.markdown("---")
         
         col_left, col_right = st.columns(2)
@@ -204,7 +204,7 @@ class TimelineComponent:
         with col_left:
             st.markdown("#### 📝 Notas Clínicas")
             if event.get('clinical_notes'):
-                # Display clinical notes in a formatted way
+                # Exibir notas clínicas de forma formatada
                 st.markdown(f"""
                 <div style="
                     background-color: #f8f9fa;
@@ -225,23 +225,23 @@ class TimelineComponent:
             self._render_related_exams(event['event_date'])
     
     def _render_related_exams(self, event_date):
-        """Render lab results related to the current event date"""
+        """Renderizar resultados laboratoriais relacionados à data do evento atual"""
         
-        # Get lab results around the event date (±7 days)
+        # Obter resultados laboratoriais próximos à data do evento (±7 dias)
         from datetime import timedelta
         
         start_date = event_date - timedelta(days=7)
         end_date = event_date + timedelta(days=7)
         
-        # Get all lab results
+        # Obter todos os resultados laboratoriais
         lab_results = self.db.get_lab_results()
         
         if not lab_results.empty:
-            # Convert test_date to datetime for comparison
+            # Converter test_date para datetime para comparação
             lab_results['test_date'] = pd.to_datetime(lab_results['test_date'])
             event_datetime = pd.to_datetime(event_date)
             
-            # Filter results within date range
+            # Filtrar resultados dentro do intervalo de datas
             related_results = lab_results[
                 (lab_results['test_date'] >= pd.to_datetime(start_date)) &
                 (lab_results['test_date'] <= pd.to_datetime(end_date))
@@ -251,7 +251,7 @@ class TimelineComponent:
                 st.markdown("**Exames no período (±7 dias):**")
                 
                 for _, result in related_results.iterrows():
-                    # Calculate days difference
+                    # Calcular diferença de dias
                     days_diff = (result['test_date'] - event_datetime).days
                     
                     if days_diff == 0:
@@ -261,14 +261,14 @@ class TimelineComponent:
                     else:
                         date_label = f"{abs(days_diff)} dia(s) antes"
                     
-                    # Format value with unit
+                    # Formatar valor com unidade
                     value_str = f"{result['test_value']}"
                     if pd.notna(result['unit']):
                         value_str += f" {result['unit']}"
                     
                     st.markdown(f"• **{result['test_name']}**: {value_str} ({date_label})")
                 
-                # Option to create a quick chart
+                # Opção para criar gráfico rápido
                 if len(related_results) > 1:
                     if st.button("📊 Visualizar Exames do Período", key="quick_chart"):
                         self._render_quick_exam_chart(related_results)
@@ -278,13 +278,13 @@ class TimelineComponent:
             st.info("Nenhum exame laboratorial registrado.")
     
     def _render_quick_exam_chart(self, related_results):
-        """Render a quick chart for exams related to current event"""
+        """Renderizar um gráfico rápido para exames relacionados ao evento atual"""
         
-        # Group by test name and create mini charts
+        # Agrupar por nome do exame e criar mini gráficos
         test_groups = related_results.groupby('test_name')
         
         for test_name, group in test_groups:
-            if len(group) > 1:  # Only show chart if multiple values
+            if len(group) > 1:  # Apenas mostrar gráfico se múltiplos valores
                 fig = go.Figure()
                 
                 fig.add_trace(go.Scatter(
@@ -308,7 +308,7 @@ class TimelineComponent:
                 st.plotly_chart(fig, use_container_width=True)
     
     def get_timeline_summary(self):
-        """Get a summary of the timeline for reports"""
+        """Obter um resumo da linha do tempo para relatórios"""
         
         events = self.db.get_medical_timeline()
         
@@ -332,7 +332,7 @@ class TimelineComponent:
                 summary_lines.append(f"   Sintomas: {symptoms_str}")
             
             if event.get('clinical_notes'):
-                # Truncate clinical notes for summary
+                # Truncar notas clínicas para o resumo
                 notes = event['clinical_notes'][:200] + "..." if len(event['clinical_notes']) > 200 else event['clinical_notes']
                 summary_lines.append(f"   Notas: {notes}")
         

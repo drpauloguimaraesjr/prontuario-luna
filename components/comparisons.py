@@ -10,15 +10,15 @@ from typing import List, Dict, Any, Optional
 from utils import format_date, format_lab_value, create_lab_results_chart
 
 class ComparisonComponent:
-    """Component for comparing lab results with interactive charts and exports"""
+    """Componente para comparar resultados laboratoriais com gráficos interativos e exportações"""
     
     def __init__(self, db):
         self.db = db
     
     def render(self):
-        """Render the comparison interface"""
+        """Renderizar a interface de comparação"""
         
-        # Get available data
+        # Obter dados disponíveis
         test_names = self.db.get_test_names()
         test_dates = self.db.get_test_dates()
         
@@ -26,21 +26,21 @@ class ComparisonComponent:
             st.info("Nenhum exame disponível para comparação. Adicione alguns exames primeiro.")
             return
         
-        # Render selection controls
+        # Renderizar controles de seleção
         selected_tests, selected_dates = self._render_selection_controls(test_names, test_dates)
         
         if selected_tests:
-            # Get filtered data
+            # Obter dados filtrados
             lab_results = self._get_filtered_results(selected_tests, selected_dates)
             
             if not lab_results.empty:
-                # Render chart
+                # Renderizar gráfico
                 self._render_comparison_chart(lab_results, selected_tests, selected_dates)
                 
-                # Render data table
+                # Renderizar tabela de dados
                 self._render_comparison_table(lab_results)
                 
-                # Render export options
+                # Renderizar opções de exportação
                 self._render_export_options(lab_results, selected_tests, selected_dates)
             else:
                 st.warning("Nenhum dado encontrado para os filtros selecionados.")
@@ -48,17 +48,17 @@ class ComparisonComponent:
             st.info("Selecione pelo menos um exame para visualizar a comparação.")
     
     def _render_selection_controls(self, test_names: List[str], test_dates: List[str]) -> tuple:
-        """Render controls for selecting tests and dates"""
+        """Renderizar controles para seleção de exames e datas"""
         
         st.subheader("Seleção de Exames e Datas")
         
-        # Test selection
+        # Seleção de exames
         col1, col2 = st.columns(2)
         
         with col1:
             st.markdown("**Selecione os exames para comparar:**")
             
-            # Quick selection buttons
+            # Botões de seleção rápida
             col_a, col_b, col_c = st.columns(3)
             with col_a:
                 if st.button("Selecionar Todos"):
@@ -71,14 +71,14 @@ class ComparisonComponent:
                     st.rerun()
             
             with col_c:
-                # Common test groups
+                # Grupos de exames comuns
                 if st.button("Hemograma Básico"):
                     common_tests = [name for name in test_names if any(keyword in name.lower() 
                                   for keyword in ['hemoglobin', 'hematócrit', 'eritrócit', 'leucócit'])]
                     st.session_state['selected_tests'] = common_tests
                     st.rerun()
             
-            # Multi-select for tests
+            # Seleção múltipla de exames
             selected_tests = st.multiselect(
                 "Exames:",
                 options=test_names,
@@ -87,13 +87,13 @@ class ComparisonComponent:
                 help="Selecione um ou mais exames para comparar"
             )
             
-            # Update session state
+            # Atualizar estado da sessão
             st.session_state['selected_tests'] = selected_tests
         
         with col2:
             st.markdown("**Selecione o período:**")
             
-            # Date selection options
+            # Opções de seleção de datas
             date_option = st.radio(
                 "Opções de data:",
                 ["Todas as datas", "Período específico", "Datas individuais"],
@@ -105,7 +105,7 @@ class ComparisonComponent:
             
             elif date_option == "Período específico":
                 if test_dates:
-                    # Convert string dates to date objects for date input
+                    # Converter datas string para objetos date para input de data
                     date_objects = [datetime.strptime(d, '%Y-%m-%d').date() for d in test_dates]
                     min_date = min(date_objects)
                     max_date = max(date_objects)
@@ -127,7 +127,7 @@ class ComparisonComponent:
                 else:
                     selected_dates = []
             
-            else:  # Individual dates
+            else:  # Datas individuais
                 selected_dates = st.multiselect(
                     "Selecione datas específicas:",
                     options=test_dates,
@@ -136,7 +136,7 @@ class ComparisonComponent:
                     key="individual_dates"
                 )
             
-            # Display selection summary
+            # Exibir resumo da seleção
             if selected_tests and selected_dates:
                 st.success(f"✅ {len(selected_tests)} exame(s) selecionado(s)")
                 st.success(f"✅ {len(selected_dates)} data(s) selecionada(s)")
@@ -144,20 +144,20 @@ class ComparisonComponent:
         return selected_tests, selected_dates
     
     def _get_filtered_results(self, selected_tests: List[str], selected_dates: List[str]) -> pd.DataFrame:
-        """Get lab results filtered by selected tests and dates"""
+        """Obter resultados laboratoriais filtrados por exames e datas selecionados"""
         
-        # Get all lab results
+        # Obter todos os resultados laboratoriais
         all_results = self.db.get_lab_results()
         
         if all_results.empty:
             return pd.DataFrame()
         
-        # Filter by selected tests
+        # Filtrar por exames selecionados
         filtered_results = all_results[all_results['test_name'].isin(selected_tests)]
         
-        # Filter by selected dates
+        # Filtrar por datas selecionadas
         if selected_dates:
-            # Convert test_date to string for comparison
+            # Converter test_date para string para comparação
             filtered_results = filtered_results[
                 filtered_results['test_date'].astype(str).isin(selected_dates)
             ]
@@ -165,11 +165,11 @@ class ComparisonComponent:
         return filtered_results.sort_values(['test_date', 'test_name'])
     
     def _render_comparison_chart(self, lab_results: pd.DataFrame, selected_tests: List[str], selected_dates: List[str]):
-        """Render the comparison chart"""
+        """Renderizar o gráfico de comparação"""
         
         st.subheader("📊 Gráfico Comparativo")
         
-        # Chart configuration options
+        # Opções de configuração do gráfico
         col1, col2, col3 = st.columns(3)
         
         with col1:
@@ -187,7 +187,7 @@ class ComparisonComponent:
             normalize_values = st.checkbox("Normalizar valores", value=False, 
                                          help="Normaliza valores para comparar exames com escalas diferentes")
         
-        # Create the chart
+        # Criar o gráfico
         fig = self._create_comparison_chart(
             lab_results, 
             selected_tests, 
@@ -197,16 +197,16 @@ class ComparisonComponent:
             normalize_values
         )
         
-        # Display chart
+        # Exibir gráfico
         st.plotly_chart(fig, use_container_width=True)
         
-        # Chart export options
+        # Opções de exportação do gráfico
         self._render_chart_export_options(fig)
     
     def _create_comparison_chart(self, lab_results: pd.DataFrame, selected_tests: List[str], 
                                chart_type: str, show_markers: bool, show_trend: bool,
                                normalize_values: bool) -> go.Figure:
-        """Create the comparison chart based on parameters"""
+        """Criar o gráfico de comparação baseado nos parâmetros"""
         
         fig = go.Figure()
         
@@ -219,10 +219,10 @@ class ComparisonComponent:
             )
             return fig
         
-        # Color palette
+        # Paleta de cores
         colors = px.colors.qualitative.Set3
         
-        # Process each test
+        # Processar cada exame
         for i, test_name in enumerate(selected_tests):
             test_data = lab_results[lab_results['test_name'] == test_name].copy()
             if not test_data.empty:
@@ -231,18 +231,18 @@ class ComparisonComponent:
             if test_data.empty:
                 continue
             
-            # Get values and dates
+            # Obter valores e datas
             x_values = pd.to_datetime(test_data['test_date'])
             y_values = test_data['test_value'].astype(float)
             
-            # Normalize values if requested
+            # Normalizar valores se solicitado
             if normalize_values and len(y_values) > 0:
                 y_mean = y_values.mean()
                 y_std = y_values.std()
                 if y_std > 0:
                     y_values = (y_values - y_mean) / y_std
             
-            # Get units for hover text
+            # Obter unidades para texto de hover
             units = ''
             if len(test_data) > 0 and 'unit' in test_data.columns:
                 try:
@@ -253,7 +253,7 @@ class ComparisonComponent:
                 except (AttributeError, IndexError):
                     units = ''
             
-            # Create trace based on chart type
+            # Criar rastro baseado no tipo de gráfico
             if chart_type == "Linha":
                 mode = 'lines+markers' if show_markers else 'lines'
                 fig.add_trace(go.Scatter(
@@ -294,9 +294,9 @@ class ComparisonComponent:
                                  "<extra></extra>"
                 ))
             
-            # Add trend line if requested
+            # Adicionar linha de tendência se solicitado
             if show_trend and chart_type in ["Linha", "Dispersão"] and len(y_values) > 1:
-                # Simple linear trend
+                # Tendência linear simples
                 import numpy as np
                 x_numeric = np.arange(len(x_values))
                 z = np.polyfit(x_numeric, y_values, 1)
@@ -312,7 +312,7 @@ class ComparisonComponent:
                     hoverinfo='skip'
                 ))
         
-        # Update layout
+        # Atualizar layout
         title = "Comparativo de Exames Laboratoriais"
         if normalize_values:
             title += " (Valores Normalizados)"
@@ -336,7 +336,7 @@ class ComparisonComponent:
         return fig
     
     def _render_chart_export_options(self, fig: go.Figure):
-        """Render chart export options"""
+        """Renderizar opções de exportação do gráfico"""
         
         st.markdown("**Exportar Gráfico:**")
         
@@ -344,11 +344,11 @@ class ComparisonComponent:
         
         with col1:
             if st.button("📋 Copiar Gráfico"):
-                # This will show a modal with copy options
+                # Isto mostrará um modal com opções de cópia
                 self._show_copy_modal(fig)
         
         with col2:
-            # Export as PNG
+            # Exportar como PNG
             if st.button("🖼️ Baixar PNG"):
                 img_bytes = fig.to_image(format="png", width=1200, height=600)
                 st.download_button(
@@ -359,7 +359,7 @@ class ComparisonComponent:
                 )
         
         with col3:
-            # Export as HTML
+            # Exportar como HTML
             if st.button("🌐 Baixar HTML"):
                 html_str = fig.to_html(include_plotlyjs='cdn')
                 st.download_button(
@@ -370,9 +370,9 @@ class ComparisonComponent:
                 )
     
     def _show_copy_modal(self, fig: go.Figure):
-        """Show modal for copying graph"""
+        """Mostrar modal para copiar gráfico"""
         
-        # Use expander as modal-like interface
+        # Usar expander como interface modal
         with st.expander("📋 Copiar Gráfico", expanded=True):
             st.write("**Opções de cópia:**")
             
@@ -380,11 +380,11 @@ class ComparisonComponent:
             
             with col1:
                 if st.button("📋 Copiar como Imagem"):
-                    # Generate base64 image for copying
+                    # Gerar imagem base64 para cópia
                     img_bytes = fig.to_image(format="png", width=1200, height=600)
                     img_b64 = base64.b64encode(img_bytes).decode()
                     
-                    # JavaScript to copy to clipboard
+                    # JavaScript para copiar para área de transferência
                     copy_js = f"""
                     <script>
                     async function copyImageToClipboard() {{
@@ -408,7 +408,7 @@ class ComparisonComponent:
             
             with col2:
                 if st.button("🔗 Copiar Link Compartilhável"):
-                    # In a real implementation, you'd generate a shareable link
+                    # Em uma implementação real, você geraria um link compartilhável
                     share_url = f"https://seu-dominio.com/share/chart/{datetime.now().strftime('%Y%m%d_%H%M')}"
                     st.code(share_url)
                     st.info("Link gerado para compartilhamento (funcionalidade simulada)")
@@ -417,7 +417,7 @@ class ComparisonComponent:
                 st.rerun()
     
     def _render_comparison_table(self, lab_results: pd.DataFrame):
-        """Render comparison data table"""
+        """Renderizar tabela de dados de comparação"""
         
         st.subheader("📋 Dados da Comparação")
         
@@ -425,24 +425,24 @@ class ComparisonComponent:
             st.info("Nenhum dado para exibir na tabela.")
             return
         
-        # Format data for display
+        # Formatar dados para exibição
         display_df = lab_results.copy()
         
-        # Format dates
+        # Formatar datas
         display_df['test_date'] = display_df['test_date'].apply(
             lambda x: datetime.strptime(str(x), '%Y-%m-%d').strftime('%d/%m/%Y') 
             if isinstance(x, str) else x.strftime('%d/%m/%Y')
         )
         
-        # Format values with units
+        # Formatar valores com unidades
         display_df['formatted_value'] = display_df.apply(
             lambda row: format_lab_value(row['test_value'], row.get('unit', '')), 
             axis=1
         )
         
-        # Select columns for display
+        # Selecionar colunas para exibição
         display_columns = ['test_date', 'test_name', 'formatted_value', 'lab_name', 'reference_range']
-        # Select and rename columns
+        # Selecionar e renomear colunas
         display_df = display_df[display_columns].copy()
         column_mapping = {
             'test_date': 'Data',
@@ -453,14 +453,14 @@ class ComparisonComponent:
         }
         display_df.columns = [column_mapping.get(col, col) for col in display_df.columns]
         
-        # Display table with sorting and filtering
+        # Exibir tabela com classificação e filtragem
         st.dataframe(
             display_df,
             use_container_width=True,
             height=min(400, len(display_df) * 35 + 100)
         )
         
-        # Table statistics
+        # Estatísticas da tabela
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
@@ -498,14 +498,14 @@ class ComparisonComponent:
                     st.metric("Laboratórios", 0)
     
     def _render_export_options(self, lab_results: pd.DataFrame, selected_tests: List[str], selected_dates: List[str]):
-        """Render export options for comparison data"""
+        """Renderizar opções de exportação para dados de comparação"""
         
         st.subheader("📥 Exportar Dados")
         
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            # Export filtered data as CSV
+            # Exportar dados filtrados como CSV
             if st.button("📊 Exportar Dados (CSV)"):
                 csv_data = lab_results.to_csv(index=False)
                 st.download_button(
@@ -516,7 +516,7 @@ class ComparisonComponent:
                 )
         
         with col2:
-            # Export pivot table
+            # Exportar tabela dinâmica
             if st.button("📋 Exportar Tabela Pivô"):
                 pivot_data = self._create_pivot_export(lab_results)
                 if pivot_data:
@@ -528,7 +528,7 @@ class ComparisonComponent:
                     )
         
         with col3:
-            # Export comparison report
+            # Exportar relatório de comparação
             if st.button("📄 Relatório de Comparação"):
                 report = self._generate_comparison_report(lab_results, selected_tests, selected_dates)
                 st.download_button(
@@ -539,13 +539,13 @@ class ComparisonComponent:
                 )
     
     def _create_pivot_export(self, lab_results: pd.DataFrame) -> Optional[str]:
-        """Create pivot table for export"""
+        """Criar tabela dinâmica para exportação"""
         
         if lab_results.empty:
             return None
         
         try:
-            # Create pivot table
+            # Criar tabela dinâmica
             pivot_df = lab_results.pivot_table(
                 index='test_name',
                 columns='test_date',
@@ -560,7 +560,7 @@ class ComparisonComponent:
             return None
     
     def _generate_comparison_report(self, lab_results: pd.DataFrame, selected_tests: List[str], selected_dates: List[str]) -> str:
-        """Generate comparison report"""
+        """Gerar relatório de comparação"""
         
         report_lines = []
         report_lines.append("RELATÓRIO DE COMPARAÇÃO - EXAMES LABORATORIAIS")
@@ -569,7 +569,7 @@ class ComparisonComponent:
         report_lines.append(f"Paciente: Luna Princess Mendes Guimarães")
         report_lines.append("")
         
-        # Selection summary
+        # Resumo da seleção
         report_lines.append("CRITÉRIOS DE SELEÇÃO:")
         report_lines.append(f"Exames selecionados: {len(selected_tests)}")
         for test in selected_tests:

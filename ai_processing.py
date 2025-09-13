@@ -8,40 +8,40 @@ import pdfplumber
 import streamlit as st
 from openai import OpenAI
 
-# the newest OpenAI model is "gpt-5" which was released August 7, 2025.
-# do not change this unless explicitly requested by the user
+# o modelo mais recente da OpenAI é "gpt-5" que foi lançado em 7 de agosto de 2025.
+# não altere isso a menos que explicitamente solicitado pelo usuário
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 class AIProcessor:
-    """Handles AI-powered processing of medical documents and data"""
+    """Gerencia processamento baseado em IA de documentos médicos e dados"""
     
     def __init__(self):
         self.client = client
         self.unit_conversions = {
-            # Common lab value unit conversions
+            # Conversões comuns de unidades de valores laboratoriais
             'ng/dl_to_mmol/l': 0.01,
             'mg/dl_to_mmol/l': 0.055,
             'g/dl_to_g/l': 10,
             'mcg/dl_to_nmol/l': 26.12,
-            # Add more conversions as needed
+            # Adicionar mais conversões conforme necessário
         }
     
     def extract_pdf_text(self, pdf_file) -> str:
-        """Extract text from PDF file"""
+        """Extrair texto de arquivo PDF"""
         try:
             text = ""
             
-            # Try with pdfplumber first (better for structured documents)
+            # Tentar com pdfplumber primeiro (melhor para documentos estruturados)
             with pdfplumber.open(pdf_file) as pdf:
                 for page in pdf.pages:
                     page_text = page.extract_text()
                     if page_text:
                         text += page_text + "\n"
             
-            # If pdfplumber fails, try PyPDF2
+            # Se pdfplumber falhar, tentar PyPDF2
             if not text.strip():
-                pdf_file.seek(0)  # Reset file pointer
+                pdf_file.seek(0)  # Resetar ponteiro do arquivo
                 pdf_reader = PyPDF2.PdfReader(pdf_file)
                 for page in pdf_reader.pages:
                     text += page.extract_text() + "\n"
@@ -52,7 +52,7 @@ class AIProcessor:
             return ""
     
     def process_lab_pdf(self, pdf_text: str, filename: str) -> List[Dict[str, Any]]:
-        """Process lab results PDF and extract structured data"""
+        """Processar PDF de resultados laboratoriais e extrair dados estruturados"""
         try:
             prompt = f"""
             Analise o seguinte texto extraído de um PDF de exame laboratorial e extraia todas as informações relevantes.
@@ -99,7 +99,7 @@ class AIProcessor:
 
             result = json.loads(response.choices[0].message.content)
             
-            # Convert to list of individual lab results
+            # Converter para lista de resultados laboratoriais individuais
             lab_results = []
             if result.get('tests'):
                 for test in result['tests']:
@@ -122,7 +122,7 @@ class AIProcessor:
             return []
     
     def process_clinical_text(self, text: str, content_type: str = "text") -> Dict[str, Any]:
-        """Process clinical notes and extract timeline information"""
+        """Processar notas clínicas e extrair informações da linha do tempo"""
         try:
             prompt = f"""
             Analise o seguinte texto clínico e extraia informações para criação de prontuário médico.
@@ -175,7 +175,7 @@ class AIProcessor:
             return {}
     
     def transcribe_audio(self, audio_file) -> str:
-        """Transcribe audio file to text"""
+        """Transcrever arquivo de áudio para texto"""
         try:
             response = self.client.audio.transcriptions.create(
                 model="whisper-1",
@@ -187,7 +187,7 @@ class AIProcessor:
             return ""
     
     def validate_medication_name(self, medication_name: str) -> Dict[str, Any]:
-        """Validate and get information about a medication"""
+        """Validar e obter informações sobre um medicamento"""
         try:
             prompt = f"""
             Analise o nome do medicamento fornecido e retorne informações validadas.
@@ -226,13 +226,13 @@ class AIProcessor:
             return {"is_valid": False, "validated_name": medication_name}
     
     def convert_units(self, value: float, from_unit: str, to_unit: str) -> Optional[float]:
-        """Convert between different units of measurement"""
+        """Converter entre diferentes unidades de medida"""
         try:
             conversion_key = f"{from_unit.lower()}_to_{to_unit.lower()}"
             if conversion_key in self.unit_conversions:
                 return value * self.unit_conversions[conversion_key]
             
-            # Use AI for unknown conversions
+            # Usar IA para conversões desconhecidas
             prompt = f"""
             Converta {value} de {from_unit} para {to_unit}.
             Retorne apenas o valor numérico convertido em formato JSON:
@@ -262,7 +262,7 @@ class AIProcessor:
             return None
     
     def generate_medical_summary(self, timeline_events: List[Dict], lab_results: List[Dict]) -> str:
-        """Generate a comprehensive medical summary"""
+        """Gerar um resumo médico abrangente"""
         try:
             prompt = f"""
             Com base nos seguintes dados médicos, gere um resumo clínico profissional:
@@ -302,12 +302,12 @@ class AIProcessor:
             return ""
     
     def _parse_numeric_value(self, value_str: str) -> Optional[float]:
-        """Parse numeric value from string"""
+        """Analisar valor numérico de string"""
         if not value_str:
             return None
         
         try:
-            # Remove non-numeric characters except decimal point and minus
+            # Remover caracteres não numéricos exceto ponto decimal e sinal de menos
             cleaned = re.sub(r'[^\d\.\-]', '', str(value_str))
             if cleaned:
                 return float(cleaned)
@@ -317,7 +317,7 @@ class AIProcessor:
         return None
     
     def process_medication_audio(self, audio_text: str) -> List[Dict[str, Any]]:
-        """Process audio transcription to extract medication information"""
+        """Processar transcrição de áudio para extrair informações de medicamentos"""
         try:
             prompt = f"""
             Analise a seguinte transcrição de áudio sobre medicamentos e extraia informações estruturadas.

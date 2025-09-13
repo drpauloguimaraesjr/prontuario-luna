@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Any
 import streamlit as st
 
 class DatabaseManager:
-    """Manages all database operations for the medical record system"""
+    """Gerencia todas as operações de banco de dados para o sistema de prontuário médico"""
     
     def __init__(self):
         self.connection_params = {
@@ -20,7 +20,7 @@ class DatabaseManager:
         self.init_database()
     
     def get_connection(self):
-        """Get database connection"""
+        """Obter conexão com o banco de dados"""
         try:
             return psycopg2.connect(**self.connection_params)
         except Exception as e:
@@ -28,7 +28,7 @@ class DatabaseManager:
             return None
     
     def init_database(self):
-        """Initialize database tables"""
+        """Inicializar tabelas do banco de dados"""
         conn = self.get_connection()
         if not conn:
             return
@@ -36,7 +36,7 @@ class DatabaseManager:
         try:
             cursor = conn.cursor()
             
-            # Users table for authentication
+            # Tabela de usuários para autenticação
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS users (
                     id SERIAL PRIMARY KEY,
@@ -47,7 +47,7 @@ class DatabaseManager:
                 )
             """)
             
-            # Patient information table
+            # Tabela de informações do paciente
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS patient_info (
                     id SERIAL PRIMARY KEY,
@@ -60,7 +60,7 @@ class DatabaseManager:
                 )
             """)
             
-            # Lab results table
+            # Tabela de resultados laboratoriais
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS lab_results (
                     id SERIAL PRIMARY KEY,
@@ -77,7 +77,7 @@ class DatabaseManager:
                 )
             """)
             
-            # Medical history timeline
+            # Linha do tempo do histórico médico
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS medical_timeline (
                     id SERIAL PRIMARY KEY,
@@ -91,7 +91,7 @@ class DatabaseManager:
                 )
             """)
             
-            # Medication history
+            # Histórico de medicamentos
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS medication_history (
                     id SERIAL PRIMARY KEY,
@@ -107,7 +107,7 @@ class DatabaseManager:
                 )
             """)
             
-            # Patient photos
+            # Fotos do paciente
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS patient_photos (
                     id SERIAL PRIMARY KEY,
@@ -118,7 +118,7 @@ class DatabaseManager:
                 )
             """)
             
-            # Uploaded files tracking
+            # Rastreamento de arquivos enviados
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS uploaded_files (
                     id SERIAL PRIMARY KEY,
@@ -132,7 +132,7 @@ class DatabaseManager:
                 )
             """)
             
-            # Insert default patient info if not exists
+            # Inserir informações padrão do paciente se não existir
             cursor.execute("SELECT COUNT(*) FROM patient_info")
             if cursor.fetchone()[0] == 0:
                 cursor.execute("""
@@ -140,7 +140,7 @@ class DatabaseManager:
                     VALUES (%s, %s, %s)
                 """, ("Luna Princess Mendes Guimarães", "Canina", "Não especificado"))
             
-            # Insert default admin user if not exists
+            # Inserir usuário admin padrão se não existir
             cursor.execute("SELECT COUNT(*) FROM users")
             if cursor.fetchone()[0] == 0:
                 import bcrypt
@@ -159,7 +159,7 @@ class DatabaseManager:
             conn.close()
     
     def get_lab_results(self) -> pd.DataFrame:
-        """Get all lab results as a DataFrame"""
+        """Obter todos os resultados laboratoriais como DataFrame"""
         conn = self.get_connection()
         if not conn:
             return pd.DataFrame()
@@ -179,13 +179,13 @@ class DatabaseManager:
             conn.close()
     
     def get_lab_results_pivot(self) -> pd.DataFrame:
-        """Get lab results in pivot table format (tests as rows, dates as columns)"""
+        """Obter resultados laboratoriais em formato de tabela dinâmica (exames como linhas, datas como colunas)"""
         df = self.get_lab_results()
         if df.empty:
             return df
         
         try:
-            # Create pivot table
+            # Criar tabela dinâmica
             pivot_df = df.pivot_table(
                 index='test_name',
                 columns='test_date',
@@ -198,7 +198,7 @@ class DatabaseManager:
             return pd.DataFrame()
     
     def save_lab_result(self, result_data: Dict[str, Any], user_id: int = 1) -> bool:
-        """Save a lab result to database"""
+        """Salvar um resultado laboratorial no banco de dados"""
         conn = self.get_connection()
         if not conn:
             return False
@@ -230,7 +230,7 @@ class DatabaseManager:
             conn.close()
     
     def get_medical_timeline(self) -> List[Dict[str, Any]]:
-        """Get medical timeline events"""
+        """Obter eventos da linha do tempo médica"""
         conn = self.get_connection()
         if not conn:
             return []
@@ -262,7 +262,7 @@ class DatabaseManager:
             conn.close()
     
     def save_medical_event(self, event_data: Dict[str, Any], user_id: int = 1) -> bool:
-        """Save a medical timeline event"""
+        """Salvar um evento da linha do tempo médica"""
         conn = self.get_connection()
         if not conn:
             return False
@@ -291,7 +291,7 @@ class DatabaseManager:
             conn.close()
     
     def get_medication_history(self) -> List[Dict[str, Any]]:
-        """Get medication history"""
+        """Obter histórico de medicamentos"""
         conn = self.get_connection()
         if not conn:
             return []
@@ -325,7 +325,7 @@ class DatabaseManager:
             conn.close()
     
     def save_medication(self, med_data: Dict[str, Any], user_id: int = 1) -> bool:
-        """Save medication to history"""
+        """Salvar medicamento no histórico"""
         conn = self.get_connection()
         if not conn:
             return False
@@ -356,7 +356,7 @@ class DatabaseManager:
             conn.close()
     
     def get_patient_info(self) -> Dict[str, Any]:
-        """Get patient information"""
+        """Obter informações do paciente"""
         conn = self.get_connection()
         if not conn:
             return {}
@@ -382,7 +382,7 @@ class DatabaseManager:
             conn.close()
     
     def get_patient_photos(self) -> Dict[str, Any]:
-        """Get patient photos"""
+        """Obter fotos do paciente"""
         conn = self.get_connection()
         if not conn:
             return {}
@@ -406,7 +406,7 @@ class DatabaseManager:
             conn.close()
     
     def save_uploaded_file(self, filename: str, file_data: bytes, file_type: str, user_id: int = 1) -> int:
-        """Save uploaded file and return file ID"""
+        """Salvar arquivo enviado e retornar ID do arquivo"""
         conn = self.get_connection()
         if not conn:
             return None
@@ -430,7 +430,7 @@ class DatabaseManager:
             conn.close()
     
     def get_test_names(self) -> List[str]:
-        """Get unique test names for comparison tool"""
+        """Obter nomes únicos de exames para ferramenta de comparação"""
         conn = self.get_connection()
         if not conn:
             return []
@@ -448,7 +448,7 @@ class DatabaseManager:
             conn.close()
     
     def get_test_dates(self) -> List[str]:
-        """Get unique test dates for comparison tool"""
+        """Obter datas únicas de exames para ferramenta de comparação"""
         conn = self.get_connection()
         if not conn:
             return []
