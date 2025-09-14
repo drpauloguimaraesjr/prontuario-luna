@@ -11,6 +11,18 @@ from typing import List, Dict, Any, Optional
 from ai_processing import AIProcessor
 from utils import validate_file_type, format_date, parse_date
 from database import ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_USER
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from pages.admin_dashboard_helpers import (
+    render_medical_trends_charts,
+    render_user_activity_charts, 
+    render_exam_analysis_charts,
+    render_system_performance_charts,
+    render_recent_activity_widget,
+    export_dashboard_data,
+    render_system_info_details
+)
 
 def run_admin_page(db, auth):
     """Executar a página administrativa com autenticação"""
@@ -125,44 +137,199 @@ def run_admin_page(db, auth):
             st.error("🚫 Acesso restrito. Apenas SUPER_ADMIN pode acessar configurações.")
 
 def render_admin_dashboard(db, auth=None):
-    """Renderizar painel administrativo com estatísticas"""
-    st.header("📊 Dashboard Administrativo")
+    """Renderizar painel administrativo com estatísticas avançadas"""
     
-    # Obter estatísticas
-    lab_results = db.get_lab_results()
-    timeline_events = db.get_medical_timeline()
-    medications = db.get_medication_history()
+    # CSS customizado para dashboard
+    st.markdown("""
+    <style>
+        .dashboard-metric {
+            background: linear-gradient(90deg, #FF69B4 0%, #FFB6C1 100%);
+            padding: 1rem;
+            border-radius: 10px;
+            color: white;
+            text-align: center;
+            margin: 0.5rem 0;
+        }
+        .alert-warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            margin: 0.5rem 0;
+        }
+        .alert-info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            margin: 0.5rem 0;
+        }
+        .alert-success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            margin: 0.5rem 0;
+        }
+        .activity-item {
+            background: #f8f9fa;
+            border-left: 4px solid #FF69B4;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            border-radius: 0 5px 5px 0;
+        }
+    </style>
+    """, unsafe_allow_html=True)
     
-    # Exibir métricas
+    st.header("📊 Dashboard Administrativo Avançado")
+    
+    # Botão de refresh
+    col_refresh, col_auto = st.columns([3, 1])
+    with col_refresh:
+        if st.button("🔄 Atualizar Métricas", type="primary"):
+            st.rerun()
+    
+    with col_auto:
+        auto_refresh = st.checkbox("🔄 Auto-refresh (30s)", help="Atualizar automaticamente a cada 30 segundos")
+    
+    if auto_refresh:
+        import time
+        time.sleep(30)
+        st.rerun()
+    
+    # Obter todas as métricas avançadas
+    metrics = db.get_dashboard_metrics()
+    alerts = db.get_system_alerts()
+    trends_data = db.get_medical_trends_data()
+    recent_activity = db.get_recent_activity()
+    db_info = db.get_database_size_info()
+    
+    # SEÇÃO 1: ALERTAS E NOTIFICAÇÕES
+    if alerts:
+        st.subheader("⚠️ Alertas do Sistema")
+        alert_cols = st.columns(len(alerts))
+        for i, alert in enumerate(alerts):
+            with alert_cols[i]:
+                alert_class = f"alert-{alert['type']}"
+                st.markdown(f"""
+                <div class="{alert_class}">
+                    <strong>{alert['title']}</strong><br>
+                    {alert['message']}
+                </div>
+                """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # SEÇÃO 2: MÉTRICAS EM TEMPO REAL
+    st.subheader("🔥 Métricas em Tempo Real")
+    
+    # Primeira linha de métricas
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("Exames Registrados", len(lab_results) if not lab_results.empty else 0)
+        st.metric(
+            "Usuários Ativos", 
+            metrics.get('total_active_users', 0),
+            delta=f"+{metrics.get('new_users_30d', 0)} novos (30d)"
+        )
     
     with col2:
-        unique_tests = lab_results['test_name'].nunique() if not lab_results.empty else 0
-        st.metric("Tipos de Exames", unique_tests)
+        st.metric(
+            "Logins 24h", 
+            metrics.get('users_last_24h', 0),
+            help="Usuários que fizeram login nas últimas 24 horas"
+        )
     
     with col3:
-        st.metric("Eventos Clínicos", len(timeline_events))
+        st.metric(
+            "Exames Registrados", 
+            metrics.get('total_lab_results', 0),
+            delta=f"+{metrics.get('recent_lab_results', 0)} (últimos 7d)"
+        )
     
     with col4:
-        st.metric("Medicamentos", len(medications))
+        st.metric(
+            "Tipos de Exames", 
+            metrics.get('unique_test_types', 0)
+        )
     
-    # Recent activity
-    st.subheader("Atividade Recente")
+    # Segunda linha de métricas
+    col5, col6, col7, col8 = st.columns(4)
     
-    if not lab_results.empty:
-        recent_results = lab_results.head(5)
-        st.write("**Últimos Exames Adicionados:**")
-        for _, result in recent_results.iterrows():
-            st.write(f"• {result['test_name']} - {format_date(result['test_date'])}")
+    with col5:
+        st.metric(
+            "Eventos Médicos", 
+            metrics.get('total_medical_events', 0)
+        )
     
-    if timeline_events:
-        st.write("**Últimos Eventos Clínicos:**")
-        recent_events = sorted(timeline_events, key=lambda x: x['event_date'], reverse=True)[:3]
-        for event in recent_events:
-            st.write(f"• {event['title']} - {format_date(event['event_date'])}")
+    with col6:
+        st.metric(
+            "Medicamentos", 
+            metrics.get('total_medications', 0)
+        )
+    
+    with col7:
+        file_size_mb = metrics.get('total_file_size', 0) / (1024 * 1024)
+        st.metric(
+            "Arquivos", 
+            metrics.get('total_files', 0),
+            delta=f"{file_size_mb:.1f} MB total"
+        )
+    
+    with col8:
+        if db_info:
+            st.metric(
+                "Tamanho BD", 
+                db_info.get('total_size_pretty', '0 B')
+            )
+        else:
+            st.metric("Tamanho BD", "N/A")
+    
+    st.markdown("---")
+    
+    # SEÇÃO 3: VISUALIZAÇÕES INTERATIVAS
+    st.subheader("📊 Visualizações Interativas")
+    
+    # Abas para diferentes visualizações
+    viz_tab1, viz_tab2, viz_tab3, viz_tab4 = st.tabs([
+        "📈 Tendências Médicas", 
+        "👥 Atividade de Usuários", 
+        "📊 Análise de Exames",
+        "💾 Performance Sistema"
+    ])
+    
+    with viz_tab1:
+        render_medical_trends_charts(trends_data)
+    
+    with viz_tab2:
+        render_user_activity_charts(db)
+    
+    with viz_tab3:
+        render_exam_analysis_charts(trends_data)
+    
+    with viz_tab4:
+        render_system_performance_charts(db_info, metrics)
+    
+    st.markdown("---")
+    
+    # SEÇÃO 4: ATIVIDADE RECENTE
+    col_activity, col_export = st.columns([3, 1])
+    
+    with col_activity:
+        st.subheader("🕰️ Atividade Recente do Sistema")
+    
+    with col_export:
+        if st.button("📊 Exportar Dashboard"):
+            export_dashboard_data(metrics, trends_data, recent_activity)
+    
+    render_recent_activity_widget(recent_activity)
+    
+    # SEÇÃO 5: INFORMAÇÕES DO SISTEMA
+    with st.expander("⚙️ Informações Detalhadas do Sistema"):
+        render_system_info_details(db_info, metrics)
 
 def render_pdf_upload_section(db, ai_processor, user_id):
     """Renderizar seção de upload e processamento de PDF"""
