@@ -851,3 +851,350 @@ class DatabaseManager:
             return False
         finally:
             conn.close()
+    
+    # MÉTODOS AVANÇADOS PARA DASHBOARD ADMINISTRATIVO
+    
+    def get_dashboard_metrics(self) -> Dict[str, Any]:
+        """Obter métricas completas para o dashboard administrativo"""
+        conn = self.get_connection()
+        if not conn:
+            return {}
+        
+        try:
+            cursor = conn.cursor()
+            metrics = {}
+            
+            # Métricas de usuários
+            cursor.execute("SELECT COUNT(*) FROM users WHERE is_active = TRUE")
+            metrics['total_active_users'] = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(*) FROM users WHERE last_login >= NOW() - INTERVAL '24 hours'")
+            metrics['users_last_24h'] = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(*) FROM users WHERE created_at >= NOW() - INTERVAL '30 days'")
+            metrics['new_users_30d'] = cursor.fetchone()[0]
+            
+            # Métricas de dados médicos
+            cursor.execute("SELECT COUNT(*) FROM lab_results")
+            metrics['total_lab_results'] = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(DISTINCT test_name) FROM lab_results")
+            metrics['unique_test_types'] = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(*) FROM medical_timeline")
+            metrics['total_medical_events'] = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(*) FROM medication_history")
+            metrics['total_medications'] = cursor.fetchone()[0]
+            
+            # Métricas de arquivos
+            cursor.execute("SELECT COUNT(*), COALESCE(SUM(OCTET_LENGTH(file_data)), 0) FROM uploaded_files")
+            file_stats = cursor.fetchone()
+            metrics['total_files'] = file_stats[0]
+            metrics['total_file_size'] = file_stats[1]
+            
+            # Atividade recente (últimos 7 dias)
+            cursor.execute("SELECT COUNT(*) FROM lab_results WHERE created_at >= NOW() - INTERVAL '7 days'")
+            metrics['recent_lab_results'] = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(*) FROM uploaded_files WHERE uploaded_at >= NOW() - INTERVAL '7 days'")
+            metrics['recent_uploads'] = cursor.fetchone()[0]
+            
+            cursor.close()
+            return metrics
+            
+        except Exception as e:
+            st.error(f"Erro ao obter métricas do dashboard: {e}")
+            return {}
+        finally:
+            conn.close()
+    
+    def get_login_activity_data(self, days: int = 30) -> pd.DataFrame:
+        """Obter dados de atividade de login dos últimos N dias"""
+        conn = self.get_connection()
+        if not conn:
+            return pd.DataFrame()
+        
+        try:
+            query = """
+                SELECT DATE(last_login) as login_date, COUNT(*) as login_count
+                FROM users 
+                WHERE last_login >= NOW() - INTERVAL '%s days'
+                  AND last_login IS NOT NULL
+                GROUP BY DATE(last_login)
+                ORDER BY login_date
+            """
+            df = pd.read_sql_query(query, conn, params=[days])
+            return df
+        except Exception as e:
+            st.error(f"Erro ao obter dados de login: {e}")
+            return pd.DataFrame()
+        finally:
+            conn.close()
+    
+    def get_medical_trends_data(self) -> Dict[str, pd.DataFrame]:
+        """Obter dados de tendências médicas para gráficos"""
+        conn = self.get_connection()
+        if not conn:
+            return {}
+        
+        try:
+            data = {}
+            
+            # Tendência de exames por mês
+            query = """
+                SELECT DATE_TRUNC('month', test_date) as month, COUNT(*) as exam_count
+                FROM lab_results
+                GROUP BY DATE_TRUNC('month', test_date)
+                ORDER BY month
+            """
+            data['exams_by_month'] = pd.read_sql_query(query, conn)
+            
+            # Tipos de exames mais comuns
+            query = """
+                SELECT test_name, COUNT(*) as count
+                FROM lab_results
+                GROUP BY test_name
+                ORDER BY count DESC
+                LIMIT 10
+            """
+            data['common_tests'] = pd.read_sql_query(query, conn)
+            
+            # Timeline de eventos médicos
+            query = """
+                SELECT DATE_TRUNC('month', event_date) as month, COUNT(*) as event_count
+                FROM medical_timeline
+                GROUP BY DATE_TRUNC('month', event_date)
+                ORDER BY month
+            """
+            data['medical_events_by_month'] = pd.read_sql_query(query, conn)
+            
+            # Medicamentos por categoria (usando route como proxy)
+            query = """
+                SELECT route, COUNT(*) as count
+                FROM medication_history
+                WHERE route IS NOT NULL
+                GROUP BY route
+                ORDER BY count DESC
+            """
+            data['medication_routes'] = pd.read_sql_query(query, conn)
+            
+            return data
+            
+        except Exception as e:
+            st.error(f"Erro ao obter dados de tendências: {e}")
+            return {}
+        finally:
+            conn.close()
+    
+    def get_recent_activity(self, limit: int = 20) -> List[Dict[str, Any]]:
+        """Obter atividade recente do sistema"""
+        conn = self.get_connection()
+        if not conn:
+            return []
+        
+        try:
+            cursor = conn.cursor()
+            activities = []
+            
+            # Últimos resultados de exames
+            cursor.execute("""
+                SELECT 'lab_result' as type, 
+                       'Exame adicionado: ' || test_name as description,
+                       created_at as timestamp,
+                       created_by as user_id
+                FROM lab_results
+                ORDER BY created_at DESC
+                LIMIT %s
+            """, (limit//4,))
+            
+            for row in cursor.fetchall():
+                activities.append({
+                    'type': row[0],
+                    'description': row[1],
+                    'timestamp': row[2],
+                    'user_id': row[3]
+                })
+            
+            # Últimos uploads
+            cursor.execute("""
+                SELECT 'file_upload' as type,
+                       'Arquivo carregado: ' || filename as description,
+                       uploaded_at as timestamp,
+                       uploaded_by as user_id
+                FROM uploaded_files
+                ORDER BY uploaded_at DESC
+                LIMIT %s
+            """, (limit//4,))
+            
+            for row in cursor.fetchall():
+                activities.append({
+                    'type': row[0],
+                    'description': row[1],
+                    'timestamp': row[2],
+                    'user_id': row[3]
+                })
+            
+            # Últimos eventos médicos
+            cursor.execute("""
+                SELECT 'medical_event' as type,
+                       'Evento médico: ' || title as description,
+                       created_at as timestamp,
+                       created_by as user_id
+                FROM medical_timeline
+                ORDER BY created_at DESC
+                LIMIT %s
+            """, (limit//4,))
+            
+            for row in cursor.fetchall():
+                activities.append({
+                    'type': row[0],
+                    'description': row[1],
+                    'timestamp': row[2],
+                    'user_id': row[3]
+                })
+            
+            # Últimas ações administrativas (se existirem logs)
+            cursor.execute("""
+                SELECT 'admin_action' as type,
+                       'Ação admin: ' || action as description,
+                       timestamp,
+                       admin_user_id as user_id
+                FROM admin_audit_logs
+                ORDER BY timestamp DESC
+                LIMIT %s
+            """, (limit//4,))
+            
+            for row in cursor.fetchall():
+                activities.append({
+                    'type': row[0],
+                    'description': row[1],
+                    'timestamp': row[2],
+                    'user_id': row[3]
+                })
+            
+            # Ordenar todas as atividades por timestamp
+            activities.sort(key=lambda x: x['timestamp'], reverse=True)
+            
+            cursor.close()
+            return activities[:limit]
+            
+        except Exception as e:
+            st.error(f"Erro ao obter atividade recente: {e}")
+            return []
+        finally:
+            conn.close()
+    
+    def get_system_alerts(self) -> List[Dict[str, Any]]:
+        """Obter alertas e notificações do sistema"""
+        conn = self.get_connection()
+        if not conn:
+            return []
+        
+        try:
+            cursor = conn.cursor()
+            alerts = []
+            
+            # Verificar espaço de arquivos
+            cursor.execute("SELECT COALESCE(SUM(OCTET_LENGTH(file_data)), 0) FROM uploaded_files")
+            total_file_size = cursor.fetchone()[0]
+            
+            # Simular limite de 100MB
+            max_size = 100 * 1024 * 1024  # 100MB
+            if total_file_size > max_size * 0.8:  # 80% do limite
+                alerts.append({
+                    'type': 'warning',
+                    'title': 'Espaço de Arquivos',
+                    'message': f'Uso de arquivos próximo ao limite: {total_file_size / (1024*1024):.1f}MB de {max_size / (1024*1024)}MB',
+                    'timestamp': datetime.now()
+                })
+            
+            # Verificar atividade recente
+            cursor.execute("SELECT COUNT(*) FROM users WHERE last_login >= NOW() - INTERVAL '7 days'")
+            recent_logins = cursor.fetchone()[0]
+            
+            if recent_logins == 0:
+                alerts.append({
+                    'type': 'info',
+                    'title': 'Baixa Atividade',
+                    'message': 'Nenhum login nos últimos 7 dias',
+                    'timestamp': datetime.now()
+                })
+            
+            # Verificar uploads recentes
+            cursor.execute("SELECT COUNT(*) FROM uploaded_files WHERE uploaded_at >= NOW() - INTERVAL '30 days'")
+            recent_uploads = cursor.fetchone()[0]
+            
+            if recent_uploads > 50:  # Muitos uploads
+                alerts.append({
+                    'type': 'info',
+                    'title': 'Alta Atividade de Upload',
+                    'message': f'{recent_uploads} arquivos carregados nos últimos 30 dias',
+                    'timestamp': datetime.now()
+                })
+            
+            cursor.close()
+            return alerts
+            
+        except Exception as e:
+            st.error(f"Erro ao obter alertas: {e}")
+            return []
+        finally:
+            conn.close()
+    
+    def get_database_size_info(self) -> Dict[str, Any]:
+        """Obter informações sobre o tamanho do banco de dados"""
+        conn = self.get_connection()
+        if not conn:
+            return {}
+        
+        try:
+            cursor = conn.cursor()
+            
+            # Tamanho do banco atual
+            cursor.execute("SELECT pg_database_size(current_database())")
+            db_size = cursor.fetchone()[0]
+            
+            # Informações das tabelas
+            cursor.execute("""
+                SELECT 
+                    schemaname,
+                    tablename,
+                    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size,
+                    pg_total_relation_size(schemaname||'.'||tablename) as size_bytes
+                FROM pg_tables 
+                WHERE schemaname = 'public'
+                ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
+            """)
+            
+            tables_info = []
+            for row in cursor.fetchall():
+                tables_info.append({
+                    'schema': row[0],
+                    'table': row[1],
+                    'size_pretty': row[2],
+                    'size_bytes': row[3]
+                })
+            
+            cursor.close()
+            
+            return {
+                'total_size_bytes': db_size,
+                'total_size_pretty': self._format_bytes(db_size),
+                'tables': tables_info
+            }
+            
+        except Exception as e:
+            st.error(f"Erro ao obter informações do banco: {e}")
+            return {}
+        finally:
+            conn.close()
+    
+    def _format_bytes(self, bytes_value: int) -> str:
+        """Formatar bytes em formato legível"""
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if bytes_value < 1024.0:
+                return f"{bytes_value:.1f} {unit}"
+            bytes_value = int(bytes_value / 1024)
+        return f"{bytes_value:.1f} TB"
+    
