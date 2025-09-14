@@ -5,6 +5,7 @@ from datetime import datetime
 import os
 from typing import Dict, List, Optional, Any
 import streamlit as st
+from encryption_utils import get_encryption_manager, should_encrypt_config, is_sensitive_config
 
 # Role constants
 ROLE_SUPER_ADMIN = "SUPER_ADMIN"
@@ -57,11 +58,15 @@ class DatabaseManager:
                 )
             """)
             
-            # Adicionar colunas role, is_active e last_login se não existirem (para compatibilidade)
+            # Adicionar colunas role, is_active, last_login e security se não existirem (para compatibilidade)
             try:
                 cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'USER'")
                 cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE")
                 cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP")
+                cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_change_required BOOLEAN DEFAULT FALSE")
+                cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER DEFAULT 0")
+                cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP")
+                cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP")
             except Exception as e:
                 # Ignorar erro se as colunas já existem
                 pass
@@ -166,6 +171,23 @@ class DatabaseManager:
                 )
             """)
             
+            # Configurações do sistema
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS system_config (
+                    id SERIAL PRIMARY KEY,
+                    category VARCHAR(50) NOT NULL,
+                    config_key VARCHAR(100) NOT NULL,
+                    config_value JSON NOT NULL,
+                    description TEXT,
+                    is_encrypted BOOLEAN DEFAULT FALSE,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_by INTEGER REFERENCES users(id),
+                    UNIQUE(category, config_key)
+                )
+            """)
+            
             # Inserir informações padrão do paciente se não existir
             cursor.execute("SELECT COUNT(*) FROM patient_info")
             if cursor.fetchone()[0] == 0:
@@ -174,19 +196,94 @@ class DatabaseManager:
                     VALUES (%s, %s, %s)
                 """, ("Luna Princess Mendes Guimarães", "Canina", "Não especificado"))
             
-            # Inserir usuário admin padrão se não existir
-            cursor.execute("SELECT COUNT(*) FROM users")
+            # Verificar se existe um admin seguro, se não, criar admin temporário
+            cursor.execute("SELECT COUNT(*) FROM users WHERE role = %s", (ROLE_SUPER_ADMIN,))
             if cursor.fetchone()[0] == 0:
                 import bcrypt
-                password_hash = bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                import secrets
+                
+                # Gerar senha temporária segura
+                temp_password = secrets.token_urlsafe(16)
+                password_hash = bcrypt.hashpw(temp_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                
                 cursor.execute("""
-                    INSERT INTO users (email, password_hash, name, role, is_active)
+                    INSERT INTO users (email, password_hash, name, role, is_active, password_change_required)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, ("admin@admin.com", password_hash, "ADMIN TEMPORÁRIO", ROLE_SUPER_ADMIN, True, True))
+                
+                # Log da senha temporária (APENAS PARA DEBUG - REMOVER EM PRODUÇÃO)
+                print(f"🚨 ADMIN TEMPORÁRIO CRIADO:")
+                print(f"   Email: admin@admin.com")
+                print(f"   Senha: {temp_password}")
+                print(f"   ⚠️  MUDE IMEDIATAMENTE NO PRIMEIRO LOGIN!")
+                
+                # Salvar informação de setup inicial necessário
+                cursor.execute("""
+                    INSERT INTO system_config (category, config_key, config_value, description, is_encrypted)
                     VALUES (%s, %s, %s, %s, %s)
-                """, ("admin@admin.com", password_hash, "Administrador", ROLE_SUPER_ADMIN, True))
+                    ON CONFLICT (category, config_key) DO NOTHING
+                """, (
+                    'SECURITY', 
+                    'initial_setup_required', 
+                    '{"value": true}',
+                    'Sistema requer configuração inicial de segurança',
+                    False
+                ))
             
             # Atualizar usuários existentes sem role para USER (compatibilidade)
             cursor.execute("UPDATE users SET role = %s WHERE role IS NULL", (ROLE_USER,))
             cursor.execute("UPDATE users SET is_active = TRUE WHERE is_active IS NULL")
+            
+            # Inserir configurações padrão do sistema se não existirem
+            cursor.execute("SELECT COUNT(*) FROM system_config")
+            if cursor.fetchone()[0] == 0:
+                default_configs = [
+                    # Configurações SMTP/Email
+                    ('SMTP', 'smtp_enabled', '{"value": false}', 'Habilitar envio de emails via SMTP'),
+                    ('SMTP', 'smtp_host', '{"value": "smtp.gmail.com"}', 'Servidor SMTP'),
+                    ('SMTP', 'smtp_port', '{"value": 587}', 'Porta do servidor SMTP'),
+                    ('SMTP', 'smtp_username', '{"value": ""}', 'Usuário SMTP'),
+                    ('SMTP', 'smtp_password', '{"value": ""}', 'Senha SMTP', True),
+                    ('SMTP', 'smtp_use_tls', '{"value": true}', 'Usar TLS/SSL'),
+                    ('SMTP', 'from_email', '{"value": ""}', 'Email remetente padrão'),
+                    ('SMTP', 'from_name', '{"value": "Sistema Prontuário Luna"}', 'Nome do remetente'),
+                    
+                    # Configurações API/Integrações
+                    ('API', 'openai_enabled', '{"value": true}', 'Habilitar integração OpenAI'),
+                    ('API', 'openai_api_key', '{"value": ""}', 'Chave da API OpenAI', True),
+                    ('API', 'openai_model', '{"value": "gpt-4"}', 'Modelo OpenAI padrão'),
+                    ('API', 'openai_max_tokens', '{"value": 4000}', 'Limite máximo de tokens'),
+                    ('API', 'api_rate_limit', '{"value": 100}', 'Limite de requisições por hora'),
+                    ('API', 'webhook_url', '{"value": ""}', 'URL do webhook para notificações'),
+                    
+                    # Configurações de Segurança
+                    ('SECURITY', 'password_min_length', '{"value": 8}', 'Comprimento mínimo da senha'),
+                    ('SECURITY', 'password_require_special', '{"value": true}', 'Requer caracteres especiais'),
+                    ('SECURITY', 'password_require_numbers', '{"value": true}', 'Requer números na senha'),
+                    ('SECURITY', 'password_expiry_days', '{"value": 90}', 'Dias para expiração da senha (0 = nunca)'),
+                    ('SECURITY', 'session_timeout_minutes', '{"value": 480}', 'Timeout da sessão em minutos'),
+                    ('SECURITY', 'max_login_attempts', '{"value": 5}', 'Tentativas máximas de login'),
+                    ('SECURITY', 'audit_log_retention_days', '{"value": 365}', 'Retenção de logs de auditoria em dias'),
+                    ('SECURITY', 'enable_2fa', '{"value": false}', 'Habilitar autenticação de dois fatores'),
+                    
+                    # Configurações Gerais
+                    ('GENERAL', 'app_name', '{"value": "Prontuário Médico Digital - Luna"}', 'Nome da aplicação'),
+                    ('GENERAL', 'app_version', '{"value": "1.0.0"}', 'Versão da aplicação'),
+                    ('GENERAL', 'timezone', '{"value": "America/Sao_Paulo"}', 'Fuso horário padrão'),
+                    ('GENERAL', 'date_format', '{"value": "DD/MM/YYYY"}', 'Formato de data padrão'),
+                    ('GENERAL', 'max_file_size_mb', '{"value": 50}', 'Tamanho máximo de arquivo em MB'),
+                    ('GENERAL', 'allowed_file_types', '{"value": ["pdf", "jpg", "jpeg", "png", "mp3", "wav", "mp4"]}', 'Tipos de arquivo permitidos'),
+                    ('GENERAL', 'backup_enabled', '{"value": true}', 'Habilitar backup automático'),
+                    ('GENERAL', 'backup_frequency_hours', '{"value": 24}', 'Frequência de backup em horas'),
+                    ('GENERAL', 'maintenance_mode', '{"value": false}', 'Modo de manutenção ativo'),
+                ]
+                
+                for config in default_configs:
+                    is_encrypted = len(config) > 4 and config[4]
+                    cursor.execute("""
+                        INSERT INTO system_config (category, config_key, config_value, description, is_encrypted)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (config[0], config[1], config[2], config[3], is_encrypted))
             
             conn.commit()
             cursor.close()
@@ -1197,4 +1294,457 @@ class DatabaseManager:
                 return f"{bytes_value:.1f} {unit}"
             bytes_value = int(bytes_value / 1024)
         return f"{bytes_value:.1f} TB"
+    
+    # ================================
+    # SISTEMA DE CONFIGURAÇÕES
+    # ================================
+    
+    def get_config(self, category: str, config_key: str) -> Optional[Any]:
+        """Obter uma configuração específica do sistema"""
+        conn = self.get_connection()
+        if not conn:
+            return None
+        
+        cursor = None
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT config_value, is_encrypted
+                FROM system_config 
+                WHERE category = %s AND config_key = %s AND is_active = TRUE
+            """, (category, config_key))
+            
+            result = cursor.fetchone()
+            if result:
+                config_value, is_encrypted = result
+                config_data = json.loads(config_value)
+                value = config_data.get('value')
+                
+                # Descriptografar se necessário
+                if is_encrypted and value and is_sensitive_config(category, config_key):
+                    encryption_manager = get_encryption_manager()
+                    if encryption_manager.is_encryption_available():
+                        decrypted_value = encryption_manager.decrypt(value)
+                        return decrypted_value
+                    else:
+                        st.warning(f"⚠️ Valor criptografado encontrado mas sistema de criptografia indisponível para {category}.{config_key}")
+                        return None
+                
+                return value
+            return None
+            
+        except Exception as e:
+            st.error(f"Erro ao obter configuração {category}.{config_key}: {e}")
+            return None
+        finally:
+            if cursor:
+                cursor.close()
+            conn.close()
+    
+    def get_all_configs(self) -> Dict[str, Dict[str, Any]]:
+        """Obter todas as configurações do sistema agrupadas por categoria"""
+        conn = self.get_connection()
+        if not conn:
+            return {}
+        
+        cursor = None
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT category, config_key, config_value, description, is_encrypted
+                FROM system_config 
+                WHERE is_active = TRUE
+                ORDER BY category, config_key
+            """)
+            
+            configs = {}
+            encryption_manager = get_encryption_manager()
+            
+            for row in cursor.fetchall():
+                category, key, value, description, is_encrypted = row
+                
+                if category not in configs:
+                    configs[category] = {}
+                
+                config_data = json.loads(value)
+                raw_value = config_data.get('value')
+                
+                # Descriptografar se necessário
+                if is_encrypted and raw_value and is_sensitive_config(category, key):
+                    if encryption_manager.is_encryption_available():
+                        decrypted_value = encryption_manager.decrypt(raw_value)
+                        display_value = encryption_manager.mask_sensitive_value(decrypted_value) if decrypted_value else ""
+                    else:
+                        decrypted_value = None
+                        display_value = "*** CRIPTOGRAFADO ***"
+                else:
+                    decrypted_value = raw_value
+                    display_value = raw_value
+                
+                configs[category][key] = {
+                    'value': decrypted_value,
+                    'display_value': display_value,
+                    'description': description,
+                    'is_encrypted': is_encrypted,
+                    'is_sensitive': is_sensitive_config(category, key)
+                }
+            
+            return configs
+            
+        except Exception as e:
+            st.error(f"Erro ao obter configurações: {e}")
+            return {}
+        finally:
+            if cursor:
+                cursor.close()
+            conn.close()
+    
+    def save_config(self, category: str, config_key: str, value: Any, user_id: int, description: Optional[str] = None) -> bool:
+        """Salvar/atualizar uma configuração do sistema com BLOQUEIO CRÍTICO contra plaintext sensível"""
+        conn = self.get_connection()
+        if not conn:
+            return False
+        
+        cursor = None
+        try:
+            cursor = conn.cursor()
+            
+            # VERIFICAÇÃO CRÍTICA DE SEGURANÇA
+            is_sensitive = is_sensitive_config(category, config_key)
+            should_encrypt = should_encrypt_config(category, config_key)
+            stored_value = value
+            is_encrypted = False
+            
+            # BLOQUEIO CRÍTICO: Nunca permitir armazenamento plaintext de configs sensíveis
+            if is_sensitive and value and str(value).strip():
+                st.error(f"🚨 BLOQUEIO DE SEGURANÇA: Tentativa de salvar configuração sensível {category}.{config_key}")
+                
+                encryption_manager = get_encryption_manager()
+                if not encryption_manager.is_encryption_available():
+                    critical_error = (
+                        f"🚨 ERRO CRÍTICO DE SEGURANÇA: Sistema de criptografia indisponível!\n\n"
+                        f"Não é possível salvar configuração sensível {category}.{config_key} sem criptografia.\n"
+                        f"Configure ENCRYPTION_KEY no ambiente antes de continuar."
+                    )
+                    st.error(critical_error)
+                    return False
+                
+                # Forçar criptografia para configs sensíveis
+                encrypted_value = encryption_manager.encrypt(str(value))
+                if not encrypted_value:
+                    st.error(f"🚨 FALHA CRÍTICA: Não foi possível criptografar {category}.{config_key}")
+                    st.error("Configurações sensíveis DEVEM ser criptografadas - operação bloqueada!")
+                    return False
+                
+                stored_value = encrypted_value
+                is_encrypted = True
+                
+                # Log crítico de segurança
+                st.success(f"🔒 Configuração sensível {category}.{config_key} criptografada com sucesso")
+                
+            elif should_encrypt and value and str(value).strip():
+                # Para outras configs que devem ser criptografadas
+                encryption_manager = get_encryption_manager()
+                if encryption_manager.is_encryption_available():
+                    encrypted_value = encryption_manager.encrypt(str(value))
+                    if encrypted_value:
+                        stored_value = encrypted_value
+                        is_encrypted = True
+                    else:
+                        st.error(f"Falha ao criptografar {category}.{config_key}")
+                        return False
+                else:
+                    st.warning(f"Sistema de criptografia indisponível para {category}.{config_key}")
+                    # Para configs não-sensíveis, permitir armazenar sem criptografia com aviso
+            
+            # VALIDAÇÃO FINAL: Dupla verificação antes de salvar
+            if is_sensitive and not is_encrypted and value and str(value).strip():
+                critical_error = (
+                    f"🚨 BLOQUEIO FINAL DE SEGURANÇA: Tentativa de bypass detectada!\n\n"
+                    f"Configuração sensível {category}.{config_key} não pode ser salva sem criptografia."
+                )
+                st.error(critical_error)
+                return False
+            
+            # Verificar se a configuração já existe
+            cursor.execute("""
+                SELECT id FROM system_config 
+                WHERE category = %s AND config_key = %s
+            """, (category, config_key))
+            
+            config_value_json = json.dumps({'value': stored_value})
+            
+            if cursor.fetchone():
+                # Atualizar configuração existente
+                cursor.execute("""
+                    UPDATE system_config 
+                    SET config_value = %s, is_encrypted = %s, updated_at = CURRENT_TIMESTAMP, updated_by = %s
+                    WHERE category = %s AND config_key = %s
+                """, (config_value_json, is_encrypted, user_id, category, config_key))
+            else:
+                # Inserir nova configuração
+                cursor.execute("""
+                    INSERT INTO system_config (category, config_key, config_value, description, is_encrypted, updated_by)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (category, config_key, config_value_json, description, is_encrypted, user_id))
+            
+            conn.commit()
+            
+            # Log da auditoria (não logar valores sensíveis)
+            log_value = "[SENSITIVE]" if is_sensitive_config(category, config_key) else str(value)
+            self.log_admin_action(user_id, f"CONFIG_UPDATE_{category}", None,
+                                 "", f"{config_key}={log_value}", f"Configuração {category}.{config_key} atualizada")
+            
+            return True
+            
+        except Exception as e:
+            st.error(f"Erro ao salvar configuração {category}.{config_key}: {e}")
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+            conn.close()
+    
+    def delete_config(self, category: str, config_key: str, user_id: int) -> bool:
+        """Deletar uma configuração do sistema"""
+        conn = self.get_connection()
+        if not conn:
+            return False
+        
+        cursor = None
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE system_config 
+                SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP, updated_by = %s
+                WHERE category = %s AND config_key = %s
+            """, (user_id, category, config_key))
+            
+            conn.commit()
+            
+            # Log da auditoria
+            self.log_admin_action(user_id, f"CONFIG_DELETE_{category}", None,
+                                 f"{config_key}", "", f"Configuração {category}.{config_key} removida")
+            
+            return True
+            
+        except Exception as e:
+            st.error(f"Erro ao deletar configuração {category}.{config_key}: {e}")
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+            conn.close()
+    
+    
+    def reset_configs_to_default(self, user_id: int) -> bool:
+        """Resetar todas as configurações para os valores padrão"""
+        conn = self.get_connection()
+        if not conn:
+            return False
+        
+        cursor = None
+        try:
+            cursor = conn.cursor()
+            
+            # Deletar todas as configurações atuais
+            cursor.execute("DELETE FROM system_config")
+            
+            # Recriar configurações padrão (reutilizar código do init_database)
+            default_configs = [
+                # Configurações SMTP/Email
+                ('SMTP', 'smtp_enabled', '{"value": false}', 'Habilitar envio de emails via SMTP'),
+                ('SMTP', 'smtp_host', '{"value": "smtp.gmail.com"}', 'Servidor SMTP'),
+                ('SMTP', 'smtp_port', '{"value": 587}', 'Porta do servidor SMTP'),
+                ('SMTP', 'smtp_username', '{"value": ""}', 'Usuário SMTP'),
+                ('SMTP', 'smtp_password', '{"value": ""}', 'Senha SMTP', True),
+                ('SMTP', 'smtp_use_tls', '{"value": true}', 'Usar TLS/SSL'),
+                ('SMTP', 'from_email', '{"value": ""}', 'Email remetente padrão'),
+                ('SMTP', 'from_name', '{"value": "Sistema Prontuário Luna"}', 'Nome do remetente'),
+                
+                # Configurações API/Integrações
+                ('API', 'openai_enabled', '{"value": true}', 'Habilitar integração OpenAI'),
+                ('API', 'openai_api_key', '{"value": ""}', 'Chave da API OpenAI', True),
+                ('API', 'openai_model', '{"value": "gpt-4"}', 'Modelo OpenAI padrão'),
+                ('API', 'openai_max_tokens', '{"value": 4000}', 'Limite máximo de tokens'),
+                ('API', 'api_rate_limit', '{"value": 100}', 'Limite de requisições por hora'),
+                ('API', 'webhook_url', '{"value": ""}', 'URL do webhook para notificações'),
+                
+                # Configurações de Segurança
+                ('SECURITY', 'password_min_length', '{"value": 8}', 'Comprimento mínimo da senha'),
+                ('SECURITY', 'password_require_special', '{"value": true}', 'Requer caracteres especiais'),
+                ('SECURITY', 'password_require_numbers', '{"value": true}', 'Requer números na senha'),
+                ('SECURITY', 'password_expiry_days', '{"value": 90}', 'Dias para expiração da senha (0 = nunca)'),
+                ('SECURITY', 'session_timeout_minutes', '{"value": 480}', 'Timeout da sessão em minutos'),
+                ('SECURITY', 'max_login_attempts', '{"value": 5}', 'Tentativas máximas de login'),
+                ('SECURITY', 'audit_log_retention_days', '{"value": 365}', 'Retenção de logs de auditoria em dias'),
+                ('SECURITY', 'enable_2fa', '{"value": false}', 'Habilitar autenticação de dois fatores'),
+                
+                # Configurações Gerais
+                ('GENERAL', 'app_name', '{"value": "Prontuário Médico Digital - Luna"}', 'Nome da aplicação'),
+                ('GENERAL', 'app_version', '{"value": "1.0.0"}', 'Versão da aplicação'),
+                ('GENERAL', 'timezone', '{"value": "America/Sao_Paulo"}', 'Fuso horário padrão'),
+                ('GENERAL', 'date_format', '{"value": "DD/MM/YYYY"}', 'Formato de data padrão'),
+                ('GENERAL', 'max_file_size_mb', '{"value": 50}', 'Tamanho máximo de arquivo em MB'),
+                ('GENERAL', 'allowed_file_types', '{"value": ["pdf", "jpg", "jpeg", "png", "mp3", "wav", "mp4"]}', 'Tipos de arquivo permitidos'),
+                ('GENERAL', 'backup_enabled', '{"value": true}', 'Habilitar backup automático'),
+                ('GENERAL', 'backup_frequency_hours', '{"value": 24}', 'Frequência de backup em horas'),
+                ('GENERAL', 'maintenance_mode', '{"value": false}', 'Modo de manutenção ativo'),
+            ]
+            
+            for config in default_configs:
+                is_encrypted = len(config) > 4 and config[4]
+                cursor.execute("""
+                    INSERT INTO system_config (category, config_key, config_value, description, is_encrypted, updated_by)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (config[0], config[1], config[2], config[3], is_encrypted, user_id))
+            
+            conn.commit()
+            
+            # Log da auditoria
+            self.log_admin_action(user_id, "CONFIG_RESET_ALL", None,
+                                 "all_configs", "default_values", "Reset completo das configurações para padrão")
+            
+            return True
+            
+        except Exception as e:
+            st.error(f"Erro ao resetar configurações: {e}")
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+            conn.close()
+    
+    def test_smtp_connection(self, smtp_config: Dict[str, Any]) -> Dict[str, Any]:
+        """Testar conectividade SMTP com as configurações fornecidas"""
+        import smtplib
+        from email.mime.text import MIMEText
+        
+        try:
+            # Extrair configurações
+            host = smtp_config.get('smtp_host', '')
+            port = int(smtp_config.get('smtp_port', 587))
+            username = smtp_config.get('smtp_username', '')
+            password = smtp_config.get('smtp_password', '')
+            use_tls = smtp_config.get('smtp_use_tls', True)
+            
+            if not all([host, port, username, password]):
+                return {
+                    'success': False,
+                    'message': 'Configurações SMTP incompletas',
+                    'details': 'Host, porta, usuário e senha são obrigatórios'
+                }
+            
+            # Tentar conectar
+            server = smtplib.SMTP(host, port)
+            
+            if use_tls:
+                server.starttls()
+            
+            server.login(username, password)
+            server.quit()
+            
+            return {
+                'success': True,
+                'message': 'Conexão SMTP estabelecida com sucesso',
+                'details': f'Conectado ao {host}:{port}'
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'message': 'Falha na conexão SMTP',
+                'details': str(e)
+            }
+    
+    def export_configs(self) -> Dict[str, Any]:
+        """Exportar todas as configurações para backup"""
+        try:
+            all_configs = self.get_all_configs()
+            
+            export_data = {
+                'export_timestamp': datetime.now().isoformat(),
+                'export_version': '1.0',
+                'configs': all_configs
+            }
+            
+            return export_data
+            
+        except Exception as e:
+            st.error(f"Erro ao exportar configurações: {e}")
+            return {}
+    
+    def import_configs(self, import_data: Dict[str, Any], user_id: int) -> bool:
+        """Importar configurações de backup"""
+        try:
+            if 'configs' not in import_data:
+                st.error("Dados de importação inválidos")
+                return False
+            
+            imported_count = 0
+            
+            for category, configs in import_data['configs'].items():
+                for config_key, config_data in configs.items():
+                    if self.save_config(category, config_key, config_data['value'], user_id, config_data.get('description')):
+                        imported_count += 1
+            
+            # Log da auditoria
+            self.log_admin_action(user_id, "CONFIG_IMPORT", None,
+                                 "", f"{imported_count}_configs", f"Importação de {imported_count} configurações")
+            
+            st.success(f"Importação concluída: {imported_count} configurações restauradas")
+            return True
+            
+        except Exception as e:
+            st.error(f"Erro ao importar configurações: {e}")
+            return False
+    
+    def validate_config(self, category: str, config_key: str, value: Any) -> Dict[str, Any]:
+        """Validar uma configuração antes de salvar"""
+        try:
+            validation_rules = {
+                'SMTP': {
+                    'smtp_port': lambda v: isinstance(v, int) and 1 <= v <= 65535,
+                    'smtp_enabled': lambda v: isinstance(v, bool),
+                    'smtp_use_tls': lambda v: isinstance(v, bool),
+                    'smtp_host': lambda v: isinstance(v, str) and len(v.strip()) > 0,
+                    'smtp_username': lambda v: isinstance(v, str),
+                    'smtp_password': lambda v: isinstance(v, str),
+                    'from_email': lambda v: isinstance(v, str) and ('@' in v or v == ''),
+                },
+                'API': {
+                    'openai_enabled': lambda v: isinstance(v, bool),
+                    'openai_max_tokens': lambda v: isinstance(v, int) and v > 0,
+                    'api_rate_limit': lambda v: isinstance(v, int) and v > 0,
+                },
+                'SECURITY': {
+                    'password_min_length': lambda v: isinstance(v, int) and v >= 4,
+                    'password_require_special': lambda v: isinstance(v, bool),
+                    'password_require_numbers': lambda v: isinstance(v, bool),
+                    'password_expiry_days': lambda v: isinstance(v, int) and v >= 0,
+                    'session_timeout_minutes': lambda v: isinstance(v, int) and v > 0,
+                    'max_login_attempts': lambda v: isinstance(v, int) and v > 0,
+                    'audit_log_retention_days': lambda v: isinstance(v, int) and v > 0,
+                    'enable_2fa': lambda v: isinstance(v, bool),
+                },
+                'GENERAL': {
+                    'max_file_size_mb': lambda v: isinstance(v, int) and v > 0,
+                    'backup_frequency_hours': lambda v: isinstance(v, int) and v > 0,
+                    'maintenance_mode': lambda v: isinstance(v, bool),
+                    'backup_enabled': lambda v: isinstance(v, bool),
+                }
+            }
+            
+            if category in validation_rules and config_key in validation_rules[category]:
+                validator = validation_rules[category][config_key]
+                if validator(value):
+                    return {'valid': True, 'message': 'Configuração válida'}
+                else:
+                    return {'valid': False, 'message': 'Valor inválido para esta configuração'}
+            
+            # Se não há regra específica, aceitar
+            return {'valid': True, 'message': 'Configuração aceita'}
+            
+        except Exception as e:
+            return {'valid': False, 'message': f'Erro na validação: {e}'}
     
