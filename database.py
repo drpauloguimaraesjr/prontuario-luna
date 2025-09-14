@@ -6,6 +6,14 @@ import os
 from typing import Dict, List, Optional, Any
 import streamlit as st
 
+# Role constants
+ROLE_SUPER_ADMIN = "SUPER_ADMIN"
+ROLE_ADMIN = "ADMIN"
+ROLE_USER = "USER"
+
+# All available roles
+ALL_ROLES = [ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_USER]
+
 class DatabaseManager:
     """Gerencia todas as operações de banco de dados para o sistema de prontuário médico"""
     
@@ -43,9 +51,19 @@ class DatabaseManager:
                     email VARCHAR(255) UNIQUE NOT NULL,
                     password_hash VARCHAR(255) NOT NULL,
                     name VARCHAR(255) NOT NULL,
+                    role VARCHAR(50) DEFAULT 'USER',
+                    is_active BOOLEAN DEFAULT TRUE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            
+            # Adicionar colunas role e is_active se não existirem (para compatibilidade)
+            try:
+                cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'USER'")
+                cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE")
+            except Exception as e:
+                # Ignorar erro se as colunas já existem
+                pass
             
             # Tabela de informações do paciente
             cursor.execute("""
@@ -132,6 +150,21 @@ class DatabaseManager:
                 )
             """)
             
+            # Logs de auditoria administrativa
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS admin_audit_logs (
+                    id SERIAL PRIMARY KEY,
+                    admin_user_id INTEGER REFERENCES users(id) NOT NULL,
+                    target_user_id INTEGER REFERENCES users(id),
+                    action VARCHAR(100) NOT NULL,
+                    old_value TEXT,
+                    new_value TEXT,
+                    details TEXT,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    ip_address VARCHAR(45)
+                )
+            """)
+            
             # Inserir informações padrão do paciente se não existir
             cursor.execute("SELECT COUNT(*) FROM patient_info")
             if cursor.fetchone()[0] == 0:
@@ -146,9 +179,13 @@ class DatabaseManager:
                 import bcrypt
                 password_hash = bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                 cursor.execute("""
-                    INSERT INTO users (email, password_hash, name)
-                    VALUES (%s, %s, %s)
-                """, ("admin@admin.com", password_hash, "Administrador"))
+                    INSERT INTO users (email, password_hash, name, role, is_active)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, ("admin@admin.com", password_hash, "Administrador", ROLE_SUPER_ADMIN, True))
+            
+            # Atualizar usuários existentes sem role para USER (compatibilidade)
+            cursor.execute("UPDATE users SET role = %s WHERE role IS NULL", (ROLE_USER,))
+            cursor.execute("UPDATE users SET is_active = TRUE WHERE is_active IS NULL")
             
             conn.commit()
             cursor.close()
@@ -442,7 +479,7 @@ class DatabaseManager:
         finally:
             conn.close()
     
-    def save_uploaded_file(self, filename: str, file_data: bytes, file_type: str, user_id: int = 1) -> int:
+    def save_uploaded_file(self, filename: str, file_data: bytes, file_type: str, user_id: int = 1) -> Optional[int]:
         """Salvar arquivo enviado e retornar ID do arquivo"""
         conn = self.get_connection()
         if not conn:
@@ -499,5 +536,103 @@ class DatabaseManager:
         except Exception as e:
             st.error(f"Erro ao buscar datas de exames: {e}")
             return []
+        finally:
+            conn.close()
+    
+    def log_admin_action(self, admin_user_id: int, action: str, target_user_id: Optional[int] = None, 
+                        old_value: Optional[str] = None, new_value: Optional[str] = None, 
+                        details: Optional[str] = None) -> bool:
+        """Registrar ação administrativa no log de auditoria"""
+        conn = self.get_connection()
+        if not conn:
+            return False
+        
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO admin_audit_logs 
+                (admin_user_id, target_user_id, action, old_value, new_value, details)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (admin_user_id, target_user_id, action, old_value, new_value, details))
+            
+            conn.commit()
+            cursor.close()
+            return True
+        except Exception as e:
+            st.error(f"Erro ao registrar log de auditoria: {e}")
+            return False
+        finally:
+            conn.close()
+    
+    def get_admin_audit_logs(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Obter logs de auditoria administrativa"""
+        conn = self.get_connection()
+        if not conn:
+            return []
+        
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT 
+                    al.id,
+                    al.timestamp,
+                    al.action,
+                    al.old_value,
+                    al.new_value,
+                    al.details,
+                    admin_user.name as admin_name,
+                    admin_user.email as admin_email,
+                    target_user.name as target_name,
+                    target_user.email as target_email
+                FROM admin_audit_logs al
+                LEFT JOIN users admin_user ON al.admin_user_id = admin_user.id
+                LEFT JOIN users target_user ON al.target_user_id = target_user.id
+                ORDER BY al.timestamp DESC
+                LIMIT %s
+            """, (limit,))
+            
+            logs = []
+            for row in cursor.fetchall():
+                logs.append({
+                    'id': row[0],
+                    'timestamp': row[1],
+                    'action': row[2],
+                    'old_value': row[3],
+                    'new_value': row[4],
+                    'details': row[5],
+                    'admin_name': row[6],
+                    'admin_email': row[7],
+                    'target_name': row[8],
+                    'target_email': row[9]
+                })
+            
+            cursor.close()
+            return logs
+        except Exception as e:
+            st.error(f"Erro ao buscar logs de auditoria: {e}")
+            return []
+        finally:
+            conn.close()
+    
+    def count_active_super_admins(self) -> int:
+        """Contar número de SUPER_ADMINs ativos"""
+        conn = self.get_connection()
+        if not conn:
+            return 0
+        
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT COUNT(*) 
+                FROM users 
+                WHERE role = %s AND is_active = TRUE
+            """, (ROLE_SUPER_ADMIN,))
+            
+            count = cursor.fetchone()[0]
+            cursor.close()
+            return count
+        except Exception as e:
+            st.error(f"Erro ao contar SUPER_ADMINs ativos: {e}")
+            return 0
         finally:
             conn.close()

@@ -10,6 +10,7 @@ from typing import List, Dict, Any, Optional
 
 from ai_processing import AIProcessor
 from utils import validate_file_type, format_date, parse_date
+from database import ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_USER
 
 def run_admin_page(db, auth):
     """Executar a página administrativa com autenticação"""
@@ -25,32 +26,59 @@ def run_admin_page(db, auth):
         return
     
     current_user = auth.get_current_user()
+    current_role = current_user.get('role', ROLE_USER)
+    
+    # Verificar se o usuário tem permissão para acessar o painel admin
+    if not auth.is_admin():
+        st.error("🚫 Acesso Negado")
+        st.warning("Apenas administradores podem acessar este painel.")
+        return
     
     # Cabeçalho administrativo
     st.markdown("# 🔐 Painel Administrativo")
-    st.markdown(f"**Usuário:** {current_user['name']} ({current_user['email']})")
+    
+    # Informações do usuário com role
+    col1, col2 = st.columns([4, 1])
+    with col1:
+        role_colors = {
+            ROLE_SUPER_ADMIN: "🔴",
+            ROLE_ADMIN: "🟡", 
+            ROLE_USER: "🟢"
+        }
+        role_icon = role_colors.get(current_role, "⚪")
+        st.markdown(f"**Usuário:** {current_user['name']} ({current_user['email']}) | **Role:** {role_icon} {current_role}")
     
     # Botão de logout
-    col1, col2 = st.columns([6, 1])
     with col2:
         if st.button("🚪 Sair"):
             auth.logout()
             st.query_params.clear()
             st.rerun()
     
-    # Abas de navegação administrativa
+    # Abas de navegação administrativa baseadas em role
+    available_tabs = ["📊 Dashboard"]
+    
+    # Todas as funções básicas disponíveis para ADMIN e SUPER_ADMIN
+    available_tabs.extend([
+        "📄 Upload de Exames (PDF)",
+        "📝 Prontuário Clínico", 
+        "💊 Medicamentos",
+        "📸 Fotos e Mídia",
+        "🔗 Links Compartilháveis"
+    ])
+    
+    # Gerenciamento de usuários apenas para ADMIN e SUPER_ADMIN
+    if auth.is_admin():
+        available_tabs.append("👥 Usuários")
+    
+    # Configurações avançadas apenas para SUPER_ADMIN
+    if auth.is_super_admin():
+        available_tabs.append("⚙️ Configurações")
+    
     admin_tab = st.selectbox(
         "Selecione a seção:",
-        [
-            "📊 Dashboard",
-            "📄 Upload de Exames (PDF)",
-            "📝 Prontuário Clínico",
-            "💊 Medicamentos",
-            "📸 Fotos e Mídia",
-            "🔗 Links Compartilháveis",
-            "👥 Usuários",
-            "⚙️ Configurações"
-        ]
+        available_tabs,
+        help=f"Seções disponíveis para seu nível de acesso ({current_role})"
     )
     
     st.markdown("---")
@@ -59,23 +87,44 @@ def run_admin_page(db, auth):
     ai_processor = AIProcessor()
     
     if admin_tab == "📊 Dashboard":
-        render_admin_dashboard(db)
+        render_admin_dashboard(db, auth)
     elif admin_tab == "📄 Upload de Exames (PDF)":
-        render_pdf_upload_section(db, ai_processor, current_user['id'])
+        if auth.is_admin():
+            render_pdf_upload_section(db, ai_processor, current_user['id'])
+        else:
+            st.error("🚫 Acesso restrito. Apenas administradores podem fazer upload de exames.")
     elif admin_tab == "📝 Prontuário Clínico":
-        render_clinical_notes_section(db, ai_processor, current_user['id'])
+        if auth.is_admin():
+            render_clinical_notes_section(db, ai_processor, current_user['id'])
+        else:
+            st.error("🚫 Acesso restrito. Apenas administradores podem gerenciar prontuários.")
     elif admin_tab == "💊 Medicamentos":
-        render_medications_section(db, ai_processor, current_user['id'])
+        if auth.is_admin():
+            render_medications_section(db, ai_processor, current_user['id'])
+        else:
+            st.error("🚫 Acesso restrito. Apenas administradores podem gerenciar medicamentos.")
     elif admin_tab == "📸 Fotos e Mídia":
-        render_media_section(db, current_user['id'])
+        if auth.is_admin():
+            render_media_section(db, current_user['id'])
+        else:
+            st.error("🚫 Acesso restrito. Apenas administradores podem gerenciar mídia.")
     elif admin_tab == "🔗 Links Compartilháveis":
-        render_shareable_links_section(db)
+        if auth.is_admin():
+            render_shareable_links_section(db)
+        else:
+            st.error("🚫 Acesso restrito. Apenas administradores podem gerenciar links.")
     elif admin_tab == "👥 Usuários":
-        auth.show_user_management()
+        if auth.is_admin():
+            auth.show_user_management(db)
+        else:
+            st.error("🚫 Acesso restrito. Apenas administradores podem gerenciar usuários.")
     elif admin_tab == "⚙️ Configurações":
-        render_settings_section(db)
+        if auth.is_super_admin():
+            render_settings_section(db, auth)
+        else:
+            st.error("🚫 Acesso restrito. Apenas SUPER_ADMIN pode acessar configurações.")
 
-def render_admin_dashboard(db):
+def render_admin_dashboard(db, auth=None):
     """Renderizar painel administrativo com estatísticas"""
     st.header("📊 Dashboard Administrativo")
     
@@ -540,7 +589,7 @@ def render_media_section(db, user_id):
             except Exception as e:
                 st.error(f"Erro ao processar foto: {e}")
 
-def render_settings_section(db):
+def render_settings_section(db, auth=None):
     """Renderizar seção de configurações do sistema"""
     st.header("⚙️ Configurações do Sistema")
     
@@ -558,6 +607,77 @@ def render_settings_section(db):
     
     if st.button("💾 Salvar Configurações de Tema"):
         st.success("Configurações salvas! Recarregue a página para ver as mudanças.")
+    
+    # Seção de logs de auditoria (apenas SUPER_ADMIN)
+    if auth and auth.is_super_admin():
+        st.subheader("🔍 Logs de Auditoria Administrativa")
+        
+        st.info("💡 Esta seção mostra todas as ações administrativas realizadas no sistema para fins de auditoria e segurança.")
+        
+        # Obter logs de auditoria
+        audit_logs = db.get_admin_audit_logs(limit=50)
+        
+        if audit_logs:
+            st.write(f"**Últimas {len(audit_logs)} ações administrativas:**")
+            
+            # Cabeçalho da tabela
+            col1, col2, col3, col4, col5 = st.columns([2, 1.5, 2, 2, 2])
+            with col1:
+                st.write("**Data/Hora**")
+            with col2:
+                st.write("**Ação**")
+            with col3:
+                st.write("**Administrador**")
+            with col4:
+                st.write("**Usuário Alvo**")
+            with col5:
+                st.write("**Detalhes**")
+            
+            st.markdown("---")
+            
+            # Exibir logs
+            for log in audit_logs:
+                col1, col2, col3, col4, col5 = st.columns([2, 1.5, 2, 2, 2])
+                
+                with col1:
+                    timestamp = log['timestamp'].strftime('%d/%m/%Y %H:%M')
+                    st.write(timestamp)
+                
+                with col2:
+                    # Ícones para diferentes ações
+                    action_icons = {
+                        "CREATE_USER": "➕",
+                        "UPDATE_USER_ROLE": "🔄",
+                        "DEACTIVATE_USER": "❌",
+                        "REACTIVATE_USER": "✅"
+                    }
+                    icon = action_icons.get(log['action'], "⚡")
+                    st.write(f"{icon} {log['action']}")
+                
+                with col3:
+                    admin_info = f"{log['admin_name']}"
+                    if log['admin_email']:
+                        admin_info += f" ({log['admin_email']})"
+                    st.write(admin_info)
+                
+                with col4:
+                    if log['target_name']:
+                        target_info = f"{log['target_name']}"
+                        if log['target_email']:
+                            target_info += f" ({log['target_email']})"
+                        st.write(target_info)
+                    else:
+                        st.write("-")
+                
+                with col5:
+                    details = log['details'] or "-"
+                    if len(details) > 50:
+                        details = details[:47] + "..."
+                    st.write(details)
+        else:
+            st.info("Nenhum log de auditoria encontrado.")
+        
+        st.markdown("---")
     
     # Seção de backup
     st.subheader("Backup e Exportação")
