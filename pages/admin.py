@@ -2,7 +2,11 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, date
 import io
-from typing import List, Dict, Any
+import os
+import subprocess
+import tempfile
+import json
+from typing import List, Dict, Any, Optional
 
 from ai_processing import AIProcessor
 from utils import validate_file_type, format_date, parse_date
@@ -300,7 +304,10 @@ def render_audio_input_section(db, ai_processor, user_id):
                     )
                     
                     if st.button("✅ Salvar Transcrição Processada"):
-                        process_clinical_text(edited_text, event_date, db, ai_processor, user_id)
+                        if edited_text and edited_text.strip():
+                            process_clinical_text(edited_text, event_date, db, ai_processor, user_id)
+                        else:
+                            st.error("Por favor, revise a transcrição antes de salvar.")
                 else:
                     st.error("Erro na transcrição do áudio.")
 
@@ -627,9 +634,6 @@ def render_settings_section(db):
     with backup_col1:
         if st.button("📥 Exportar Todos os Dados (JSON)"):
             try:
-                import json
-                from datetime import datetime, date
-                
                 with st.spinner("Exportando dados..."):
                     # Coletar todos os dados
                     export_data = {
@@ -665,9 +669,6 @@ def render_settings_section(db):
     with backup_col2:
         if st.button("🔄 Backup Sistemático"):
             try:
-                import json
-                from datetime import datetime
-                
                 # Simular backup sistemático (em produção seria integrado com serviços de backup)
                 backup_info = {
                     "timestamp": datetime.now().isoformat(),
@@ -824,7 +825,7 @@ def render_video_input_section(db, ai_processor, user_id):
                     st.session_state.video_filename = None
                     st.rerun()
 
-def process_video_transcription(video_bytes: bytes, filename: str, ai_processor) -> str:
+def process_video_transcription(video_bytes: bytes, filename: str, ai_processor) -> Optional[str]:
     """
     Extrair áudio do vídeo e transcrever usando OpenAI Whisper
     """
@@ -836,9 +837,6 @@ def process_video_transcription(video_bytes: bytes, filename: str, ai_processor)
     audio_path = None
     
     try:
-        import tempfile
-        import os
-        
         # Criar nome de arquivo temporário seguro
         safe_filename = "".join(c for c in filename if c.isalnum() or c in '._-')[:50]
         
@@ -904,17 +902,13 @@ def process_video_transcription(video_bytes: bytes, filename: str, ai_processor)
         except Exception as cleanup_error:
             st.warning(f"⚠️ Erro ao limpar arquivo de áudio temporário: {cleanup_error}")
 
-def extract_audio_from_video(video_path: str) -> str:
+def extract_audio_from_video(video_path: str) -> Optional[str]:
     """
     Extrair áudio de vídeo usando ffmpeg (se disponível)
     """
     audio_path = None
     
     try:
-        import subprocess
-        import tempfile
-        import os
-        
         # Verificar se o arquivo de vídeo existe
         if not os.path.exists(video_path):
             st.warning("⚠️ Arquivo de vídeo não encontrado.")
