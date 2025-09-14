@@ -7,6 +7,7 @@ from PIL import Image
 import base64
 import io
 import os
+import sys
 from pathlib import Path
 
 # Importar módulos personalizados
@@ -16,6 +17,7 @@ from components.lab_results import LabResultsComponent
 from components.timeline import TimelineComponent
 from components.comparisons import ComparisonComponent
 from utils import format_date, convert_units
+from encryption_utils import get_encryption_manager
 
 # Configuração da página
 st.set_page_config(
@@ -24,6 +26,93 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# VALIDAÇÃO CRÍTICA DE SEGURANÇA NA INICIALIZAÇÃO
+def validate_security_requirements():
+    """Validar requisitos críticos de segurança antes de inicializar a aplicação"""
+    import os
+    import sys
+    
+    # Verificar ambiente de produção
+    app_env = os.getenv('APP_ENV', '').lower()
+    is_production = app_env == 'production'
+    
+    if is_production:
+        # PRODUÇÃO: Validação rigorosa obrigatória
+        
+        # 1. Verificar se ENCRYPTION_KEY está configurada
+        encryption_key = os.getenv('ENCRYPTION_KEY')
+        if not encryption_key or not encryption_key.strip():
+            st.error("🚨 **FALHA CRÍTICA DE SEGURANÇA EM PRODUÇÃO**")
+            st.error("ENCRYPTION_KEY é obrigatória em ambiente de produção.")
+            st.error("Configure a chave de criptografia antes de inicializar o sistema.")
+            sys.stderr.write("PRODUCTION ERROR: Missing ENCRYPTION_KEY\n")
+            st.stop()
+        
+        # 2. Verificar se a chave tem formato/tamanho válido
+        if len(encryption_key) < 32:
+            st.error("🚨 **FALHA CRÍTICA DE SEGURANÇA EM PRODUÇÃO**")
+            st.error("ENCRYPTION_KEY deve ter pelo menos 32 caracteres em produção.")
+            sys.stderr.write("PRODUCTION ERROR: Invalid ENCRYPTION_KEY length\n")
+            st.stop()
+        
+        # 3. Verificar outras variáveis críticas de produção
+        required_prod_vars = ['PGHOST', 'PGDATABASE', 'PGUSER', 'PGPASSWORD']
+        for var in required_prod_vars:
+            if not os.getenv(var):
+                st.error(f"🚨 **FALHA CRÍTICA DE SEGURANÇA EM PRODUÇÃO**")
+                st.error(f"Variável de ambiente obrigatória ausente: {var}")
+                sys.stderr.write(f"PRODUCTION ERROR: Missing {var}\n")
+                st.stop()
+        
+        # Log de inicialização segura (sem expor valores)
+        sys.stderr.write("[SECURITY] Production security validation passed\n")
+    
+    # Verificar criptografia obrigatória
+    encryption_manager = get_encryption_manager()
+    
+    if not encryption_manager.is_encryption_available():
+        st.error("🚨 **FALHA CRÍTICA DE SEGURANÇA**")
+        st.error("Sistema de criptografia não está disponível.")
+        st.error("A aplicação não pode operar sem criptografia adequada.")
+        if is_production:
+            st.error("ERRO CRÍTICO EM PRODUÇÃO: Falha na inicialização da criptografia.")
+            sys.stderr.write("PRODUCTION ERROR: Encryption initialization failed\n")
+        else:
+            st.error("Configure ENCRYPTION_KEY no ambiente de produção.")
+        st.stop()
+    
+    # Teste de funcionalidade da criptografia
+    if not encryption_manager.test_encryption():
+        st.error("🚨 **FALHA CRÍTICA DE SEGURANÇA**")
+        st.error("Teste de criptografia falhou.")
+        st.error("Sistema de criptografia não está funcionando corretamente.")
+        if is_production:
+            sys.stderr.write("PRODUCTION ERROR: Encryption test failed\n")
+        st.stop()
+    
+    # PRODUÇÃO: Verificações adicionais de segurança
+    if is_production:
+        # Verificar se não há chaves temporárias sendo usadas
+        try:
+            # Tentar criar um novo manager para verificar se há geração automática
+            from encryption_utils import EncryptionManager
+            test_manager = EncryptionManager()
+            if not test_manager.is_encryption_available():
+                st.error("🚨 **FALHA DE SEGURANÇA EM PRODUÇÃO**")
+                st.error("Detecção de chave temporária ou geração automática em produção.")
+                sys.stderr.write("PRODUCTION ERROR: Temporary key detected\n")
+                st.stop()
+        except Exception as e:
+            sys.stderr.write(f"[SECURITY] Encryption manager validation: {str(e)}\n")
+
+# Executar validação de segurança ANTES de qualquer inicialização
+validate_security_requirements()
+
+# Log de inicialização segura
+import sys
+app_env = os.getenv('APP_ENV', 'development').lower()
+sys.stderr.write(f"[SECURITY] Application starting in {app_env} mode\n")
 
 # Inicializar banco de dados e autenticação
 @st.cache_resource
@@ -36,6 +125,23 @@ def init_auth():
 
 db = init_database()
 auth = init_auth()
+
+# MIDDLEWARE DE SEGURANÇA - Enforçar mudança obrigatória de senha
+def apply_security_middleware():
+    """Aplicar middleware de segurança que bloqueia funcionalidades quando necessário"""
+    
+    # Se usuário está autenticado, verificar se precisa mudar senha
+    if auth.is_authenticated():
+        # Enforcement crítico - bloqueia TODA funcionalidade se senha precisa ser alterada
+        if auth.enforce_password_change():
+            # Se enforce_password_change() retorna True, significa que está bloqueando
+            # Interromper execução aqui - usuário só pode alterar senha
+            st.stop()
+    
+    return True
+
+# Aplicar middleware de segurança ANTES de qualquer funcionalidade
+apply_security_middleware()
 
 # Verificar se é um link compartilhado
 query_params = st.query_params

@@ -2,6 +2,8 @@ import bcrypt
 import streamlit as st
 import psycopg2
 import os
+import re
+from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 
 # Import role constants from database module
@@ -19,6 +21,12 @@ class AuthManager:
             'port': os.getenv('PGPORT', 5432)
         }
     
+    def _show_generic_login_error(self):
+        """Mostrar erro genérico de login para prevenir enumeração de contas"""
+        st.error("❌ **Credenciais inválidas**")
+        st.error("Email ou senha incorretos. Verifique suas credenciais e tente novamente.")
+        # Não revelar se o usuário existe, se está bloqueado, etc.
+    
     def get_connection(self):
         """Obter conexão com o banco de dados"""
         try:
@@ -28,41 +36,131 @@ class AuthManager:
             return None
     
     def authenticate_user(self, email: str, password: str) -> Optional[Dict[str, Any]]:
-        """Autenticar usuário com email e senha"""
+        """Autenticar usuário com email e senha aplicando políticas de segurança"""
         conn = self.get_connection()
         if not conn:
+            # Sempre mostrar erro genérico para falhas de sistema
+            self._show_generic_login_error()
             return None
+        
+        cursor = None
+        
+        # Flag para rastrear se devemos simular tempo de processamento
+        simulate_processing = False
         
         try:
             cursor = conn.cursor()
+            
+            # Obter dados completos do usuário incluindo campos de segurança
             cursor.execute("""
-                SELECT id, email, password_hash, name, role, is_active 
+                SELECT id, email, password_hash, name, role, is_active,
+                       failed_login_attempts, locked_until, password_change_required,
+                       last_login, password_changed_at
                 FROM users 
                 WHERE email = %s AND is_active = TRUE
             """, (email,))
             
             user_data = cursor.fetchone()
-            cursor.close()
+            if not user_data:
+                # ANTI-ENUMERAÇÃO: Simular processamento mesmo para usuários inexistentes
+                simulate_processing = True
+                # Log detalhado no servidor, erro genérico no cliente
+                import sys
+                sys.stderr.write(f"[AUTH_LOG] Login attempt for non-existent user: {email}\n")
+                # Continue processamento para evitar timing attacks
+                
+                # Simular tempo de processamento para usuários inexistentes usando hash fixo
+                import time
+                dummy_hash = '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewKyNiHa1B.QvwOq'  # Hash fixo para simular processamento
+                bcrypt.checkpw(password.encode('utf-8'), dummy_hash.encode('utf-8'))
+                
+                # Mostrar erro genérico e retornar
+                self._show_generic_login_error()
+                return None
             
-            if user_data and bcrypt.checkpw(password.encode('utf-8'), user_data[2].encode('utf-8')):
-                return {
-                    'id': user_data[0],
-                    'email': user_data[1],
-                    'name': user_data[3],
-                    'role': user_data[4] or ROLE_USER,
-                    'is_active': user_data[5]
-                }
+            # Desempacotar dados do usuário (agora sabemos que user_data não é None)
+            user_id, user_email, password_hash, name, role, is_active, \
+            failed_attempts, locked_until, password_change_required, \
+            last_login, password_changed_at = user_data
             
-            return None
+            if not simulate_processing:
+                # Verificar se a conta está bloqueada por tentativas de login
+                if self._is_account_locked(locked_until):
+                    # Log detalhado no servidor, erro genérico no cliente
+                    import sys
+                    sys.stderr.write(f"[AUTH_LOG] Login attempt for locked account: {email}\n")
+                    self._show_generic_login_error()
+                    return None
+                
+                # Verificar se excedeu o limite de tentativas
+                max_attempts = self._get_max_login_attempts()
+                if failed_attempts >= max_attempts:
+                    # Bloquear conta por período determinado
+                    self._lock_account(cursor, user_id)
+                    import sys
+                    sys.stderr.write(f"[AUTH_LOG] Account locked after max attempts: {email}\n")
+                    conn.commit()
+                    self._show_generic_login_error()
+                    return None
+            
+            # Verificar senha (ou simular verificação para usuários inexistentes)
+            password_valid = False
+            if not simulate_processing:
+                password_valid = bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
+                
+                if not password_valid:
+                    # Incrementar contador de tentativas falhadas
+                    self._increment_failed_attempts(cursor, user_id, failed_attempts + 1)
+                    # Log detalhado no servidor
+                    import sys
+                    sys.stderr.write(f"[AUTH_LOG] Invalid password for user: {email}\n")
+                    conn.commit()
+            # Timing attack protection is already handled above when user doesn't exist
+                
+            # ANTI-ENUMERAÇÃO: Sempre mostrar erro genérico para falhas
+            if not password_valid or simulate_processing:
+                self._show_generic_login_error()
+                return None
+            
+            # Sucesso na autenticação - resetar tentativas falhadas
+            cursor.execute("""
+                UPDATE users 
+                SET failed_login_attempts = 0, locked_until = NULL, last_login = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (user_id,))
+            conn.commit()
+            
+            user_dict = {
+                'id': user_id,
+                'email': user_email,
+                'name': name,
+                'role': role or ROLE_USER,
+                'is_active': is_active,
+                'password_change_required': password_change_required,
+                'last_login': last_login,
+                'password_changed_at': password_changed_at
+            }
+            
+            # Verificar se senha expirou
+            if self._is_password_expired(password_changed_at):
+                user_dict['password_expired'] = True
+                st.warning("⚠️ Sua senha expirou e deve ser alterada.")
+            
+            return user_dict
             
         except Exception as e:
-            st.error(f"Erro na autenticação: {e}")
+            # Log detalhado no servidor, erro genérico no cliente
+            import sys
+            sys.stderr.write(f"[AUTH_LOG] Authentication exception for {email}: {str(e)}\n")
+            self._show_generic_login_error()
             return None
         finally:
+            if cursor:
+                cursor.close()
             conn.close()
     
     def create_user(self, email: str, password: str, name: str, role: str = ROLE_USER, is_active: bool = True) -> bool:
-        """Criar um novo usuário"""
+        """Criar um novo usuário com validação de políticas de segurança"""
         conn = self.get_connection()
         if not conn:
             return False
@@ -70,10 +168,14 @@ class AuthManager:
         try:
             cursor = conn.cursor()
             
-            # Verificar se o usuário já existe
+            # Verificar se o usuário já existe (sem revelar informação específica)
             cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
             if cursor.fetchone():
-                st.error("Usuário já existe com este email.")
+                # Log detalhado no servidor, erro genérico no cliente
+                import sys
+                sys.stderr.write(f"[AUTH_LOG] User creation attempt for existing email: {email}\n")
+                st.error("❌ Não foi possível criar o usuário.")
+                st.error("Verifique os dados fornecidos e tente novamente.")
                 return False
             
             # Validar role
@@ -81,11 +183,15 @@ class AuthManager:
                 st.error(f"Role inválido: {role}")
                 return False
             
+            # Validar senha contra políticas configuradas
+            if not self._validate_password_policy(password):
+                return False
+            
             # Criptografar senha e criar usuário
             password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
             cursor.execute("""
-                INSERT INTO users (email, password_hash, name, role, is_active)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO users (email, password_hash, name, role, is_active, password_changed_at)
+                VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
             """, (email, password_hash, name, role, is_active))
             
             conn.commit()
@@ -107,6 +213,138 @@ class AuthManager:
         if self.is_authenticated():
             return st.session_state.get('user')
         return None
+    
+    def requires_password_change(self) -> bool:
+        """Verificar se o usuário atual requer mudança de senha obrigatória"""
+        if not self.is_authenticated():
+            return False
+        
+        user = self.get_current_user()
+        if not user:
+            return False
+        
+        # Verificar flag de mudança obrigatória
+        if user.get('password_change_required', False):
+            return True
+        
+        # Verificar se senha expirou
+        if user.get('password_expired', False):
+            return True
+        
+        return False
+    
+    def enforce_password_change(self) -> bool:
+        """
+        Enforçar mudança de senha obrigatória - bloqueia TODA funcionalidade.
+        Retorna True se o usuário precisa mudar a senha (bloqueando outras funcionalidades).
+        Retorna False se não há necessidade de mudança (permite acesso normal).
+        """
+        if not self.requires_password_change():
+            return False
+        
+        # BLOQUEIO TOTAL - Mostrar apenas interface de mudança de senha
+        st.error("🔐 **MUDANÇA DE SENHA OBRIGATÓRIA**")
+        st.warning("Sua senha precisa ser alterada antes de acessar o sistema.")
+        st.warning("Todas as outras funcionalidades estão bloqueadas até que você altere sua senha.")
+        
+        # Interface de mudança forçada de senha
+        self._show_mandatory_password_change_form()
+        
+        # Bloquear qualquer outra funcionalidade
+        return True
+    
+    def _show_mandatory_password_change_form(self):
+        """Mostrar formulário obrigatório de mudança de senha"""
+        current_user = self.get_current_user()
+        if not current_user:
+            return
+        
+        st.markdown("---")
+        
+        with st.form("mandatory_password_change"):
+            st.subheader("🔒 Alterar Senha - OBRIGATÓRIO")
+            
+            # Mostrar informações do usuário
+            st.info(f"**Usuário:** {current_user['name']} ({current_user['email']})")
+            
+            # Razão da mudança obrigatória
+            if current_user.get('password_change_required', False):
+                st.warning("⚠️ Mudança de senha requerida pelo administrador do sistema.")
+            if current_user.get('password_expired', False):
+                st.warning("⚠️ Sua senha expirou e deve ser alterada.")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                old_password = st.text_input(
+                    "Senha atual *", 
+                    type="password",
+                    help="Digite sua senha atual para confirmar identidade"
+                )
+            
+            with col2:
+                new_password = st.text_input(
+                    "Nova senha *", 
+                    type="password",
+                    help="Digite sua nova senha"
+                )
+            
+            new_password_confirm = st.text_input(
+                "Confirmar nova senha *", 
+                type="password",
+                help="Digite novamente sua nova senha para confirmar"
+            )
+            
+            # Mostrar política de senhas
+            st.markdown("**Política de Senhas:**")
+            st.markdown("- Mínimo de 8 caracteres")
+            st.markdown("- Deve conter pelo menos: 1 maiúscula, 1 minúscula, 1 número, 1 caractere especial")
+            
+            col_submit, col_logout = st.columns([2, 1])
+            
+            with col_submit:
+                submit_button = st.form_submit_button(
+                    "🔐 Alterar Senha",
+                    type="primary",
+                    use_container_width=True
+                )
+            
+            with col_logout:
+                logout_button = st.form_submit_button(
+                    "🚪 Sair do Sistema",
+                    help="Fazer logout e voltar à tela de login"
+                )
+            
+            if logout_button:
+                self.logout()
+                st.query_params.clear()
+                st.rerun()
+            
+            if submit_button:
+                if not old_password or not new_password or not new_password_confirm:
+                    st.error("❌ Todos os campos são obrigatórios.")
+                elif new_password != new_password_confirm:
+                    st.error("❌ Nova senha e confirmação não coincidem.")
+                elif old_password == new_password:
+                    st.error("❌ A nova senha deve ser diferente da senha atual.")
+                else:
+                    # Tentar alterar a senha
+                    if self.change_password(current_user['id'], old_password, new_password):
+                        st.success("✅ Senha alterada com sucesso!")
+                        st.success("🎉 Você agora pode acessar todas as funcionalidades do sistema.")
+                        
+                        # Atualizar dados do usuário na sessão
+                        updated_user = current_user.copy()
+                        updated_user['password_change_required'] = False
+                        updated_user['password_expired'] = False
+                        st.session_state['user'] = updated_user
+                        
+                        st.info("⏳ Redirecionando em alguns segundos...")
+                        
+                        # Forçar recarregamento da página para aplicar mudanças
+                        import time
+                        time.sleep(2)
+                        st.rerun()
     
     def login(self, user_data: Dict[str, Any], db_manager=None):
         """Fazer login do usuário (definir estado da sessão)"""
@@ -1118,3 +1356,182 @@ class AuthManager:
                         st.write(f"**Novo Valor:** {log['new_value']}")
         else:
             st.info("Nenhum log de auditoria encontrado.")
+    
+    # ================================
+    # MÉTODOS DE SEGURANÇA E POLÍTICAS
+    # ================================
+    
+    def _get_security_config(self, config_key: str, default_value: Any = None) -> Any:
+        """Obter configuração de segurança do banco"""
+        try:
+            from database import DatabaseManager
+            db = DatabaseManager()
+            value = db.get_config('SECURITY', config_key)
+            return value if value is not None else default_value
+        except Exception:
+            return default_value
+    
+    def _is_account_locked(self, locked_until) -> bool:
+        """Verificar se conta está bloqueada"""
+        if not locked_until:
+            return False
+        return datetime.now() < locked_until
+    
+    def _get_max_login_attempts(self) -> int:
+        """Obter número máximo de tentativas de login"""
+        return self._get_security_config('max_login_attempts', 5)
+    
+    def _lock_account(self, cursor, user_id: int):
+        """Bloquear conta por período determinado"""
+        # Bloquear por 15 minutos após exceder tentativas
+        lock_duration = timedelta(minutes=15)
+        locked_until = datetime.now() + lock_duration
+        
+        cursor.execute("""
+            UPDATE users 
+            SET locked_until = %s, failed_login_attempts = %s
+            WHERE id = %s
+        """, (locked_until, self._get_max_login_attempts() + 1, user_id))
+    
+    def _increment_failed_attempts(self, cursor, user_id: int, attempts: int):
+        """Incrementar contador de tentativas falhadas"""
+        cursor.execute("""
+            UPDATE users 
+            SET failed_login_attempts = %s
+            WHERE id = %s
+        """, (attempts, user_id))
+    
+    def _is_password_expired(self, password_changed_at) -> bool:
+        """Verificar se senha expirou baseado na política"""
+        if not password_changed_at:
+            return True  # Se nunca mudou a senha, está expirada
+        
+        expiry_days = self._get_security_config('password_expiry_days', 0)
+        if expiry_days == 0:
+            return False  # Senhas nunca expiram
+        
+        expiry_date = password_changed_at + timedelta(days=expiry_days)
+        return datetime.now() > expiry_date
+    
+    def _validate_password_policy(self, password: str) -> bool:
+        """Validar senha contra políticas configuradas"""
+        if not password:
+            st.error("Senha não pode estar vazia")
+            return False
+        
+        # Obter políticas de segurança
+        min_length = self._get_security_config('password_min_length', 8)
+        require_special = self._get_security_config('password_require_special', True)
+        require_numbers = self._get_security_config('password_require_numbers', True)
+        
+        # Validar comprimento mínimo
+        if len(password) < min_length:
+            st.error(f"Senha deve ter pelo menos {min_length} caracteres")
+            return False
+        
+        # Validar caracteres especiais
+        if require_special:
+            special_chars = "!@#$%^&*()_+-=[]{}|;:,.<>?"
+            if not any(c in special_chars for c in password):
+                st.error("Senha deve conter pelo menos um caractere especial")
+                return False
+        
+        # Validar números
+        if require_numbers:
+            if not any(c.isdigit() for c in password):
+                st.error("Senha deve conter pelo menos um número")
+                return False
+        
+        # Validar maiúsculas e minúsculas
+        if not any(c.isupper() for c in password):
+            st.error("Senha deve conter pelo menos uma letra maiúscula")
+            return False
+        
+        if not any(c.islower() for c in password):
+            st.error("Senha deve conter pelo menos uma letra minúscula")
+            return False
+        
+        return True
+    
+    def check_session_timeout(self) -> bool:
+        """Verificar se sessão expirou baseado na política"""
+        if not self.is_authenticated():
+            return True
+        
+        # Obter tempo de timeout da configuração
+        timeout_minutes = self._get_security_config('session_timeout_minutes', 480)
+        
+        # Verificar último acesso (simulado via timestamp da sessão)
+        last_activity = st.session_state.get('last_activity')
+        if not last_activity:
+            # Definir timestamp atual se não existe
+            st.session_state['last_activity'] = datetime.now()
+            return False
+        
+        # Verificar se expirou
+        if isinstance(last_activity, str):
+            last_activity = datetime.fromisoformat(last_activity)
+        
+        timeout = timedelta(minutes=timeout_minutes)
+        if datetime.now() - last_activity > timeout:
+            st.warning("⏰ Sessão expirou por inatividade. Faça login novamente.")
+            self.logout()
+            return True
+        
+        # Atualizar timestamp de atividade
+        st.session_state['last_activity'] = datetime.now()
+        return False
+    
+    def change_password(self, user_id: int, old_password: str, new_password: str) -> bool:
+        """Alterar senha do usuário com validações de segurança"""
+        conn = self.get_connection()
+        if not conn:
+            return False
+        
+        cursor = None
+        try:
+            cursor = conn.cursor()
+            
+            # Verificar senha atual
+            cursor.execute("SELECT password_hash FROM users WHERE id = %s", (user_id,))
+            result = cursor.fetchone()
+            if not result:
+                st.error("Usuário não encontrado")
+                return False
+            
+            current_hash = result[0]
+            if not bcrypt.checkpw(old_password.encode('utf-8'), current_hash.encode('utf-8')):
+                st.error("Senha atual incorreta")
+                return False
+            
+            # Validar nova senha
+            if not self._validate_password_policy(new_password):
+                return False
+            
+            # Verificar se não é igual à senha atual
+            if bcrypt.checkpw(new_password.encode('utf-8'), current_hash.encode('utf-8')):
+                st.error("A nova senha deve ser diferente da senha atual")
+                return False
+            
+            # Criptografar nova senha
+            new_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            
+            # Atualizar senha e marcar como alterada
+            cursor.execute("""
+                UPDATE users 
+                SET password_hash = %s, password_change_required = FALSE, 
+                    password_changed_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (new_hash, user_id))
+            
+            conn.commit()
+            st.success("✅ Senha alterada com sucesso!")
+            return True
+            
+        except Exception as e:
+            st.error(f"Erro ao alterar senha: {e}")
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+            conn.close()

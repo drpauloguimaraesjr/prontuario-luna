@@ -37,6 +37,11 @@ def run_admin_page(db, auth):
     if not auth.require_auth(redirect_to_login=True):
         return
     
+    # ENFORCEMENT CRÍTICO: Bloquear acesso se mudança de senha for obrigatória
+    if auth.enforce_password_change():
+        # Se enforce_password_change() retorna True, bloqueia TUDO
+        return
+    
     current_user = auth.get_current_user()
     current_role = current_user.get('role', ROLE_USER)
     
@@ -757,222 +762,778 @@ def render_media_section(db, user_id):
                 st.error(f"Erro ao processar foto: {e}")
 
 def render_settings_section(db, auth=None):
-    """Renderizar seção de configurações do sistema"""
-    st.header("⚙️ Configurações do Sistema")
+    """Renderizar seção avançada de configurações do sistema"""
     
-    # Configurações de tema
-    st.subheader("Configurações de Tema")
+    # CSS customizado para a interface de configurações
+    st.markdown("""
+    <style>
+        .config-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 1rem;
+            border-radius: 10px;
+            color: white;
+            margin: 1rem 0;
+        }
+        .config-card {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #FF69B4;
+            margin: 0.5rem 0;
+        }
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            border: 1px solid #c3e6cb;
+            margin: 0.5rem 0;
+        }
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            border: 1px solid #f5c6cb;
+            margin: 0.5rem 0;
+        }
+        .info-message {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            border: 1px solid #bee5eb;
+            margin: 0.5rem 0;
+        }
+    </style>
+    """, unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2)
-    with col1:
-        primary_color = st.color_picker("Cor Primária", "#FF69B4")
-        background_color = st.color_picker("Cor de Fundo", "#FFFFFF")
+    st.header("⚙️ Configurações Avançadas do Sistema")
     
-    with col2:
-        secondary_color = st.color_picker("Cor Secundária", "#FFB6C1")
-        text_color = st.color_picker("Cor do Texto", "#262730")
+    # Verificar se o usuário tem permissão
+    if not auth or not auth.is_super_admin():
+        st.error("🚫 Acesso Negado - Apenas SUPER_ADMIN pode modificar configurações do sistema")
+        return
     
-    if st.button("💾 Salvar Configurações de Tema"):
-        st.success("Configurações salvas! Recarregue a página para ver as mudanças.")
+    current_user = auth.get_current_user()
+    user_id = current_user.get('id')
     
-    # Seção de logs de auditoria (apenas SUPER_ADMIN)
-    if auth and auth.is_super_admin():
-        st.subheader("🔍 Logs de Auditoria Administrativa")
+    # Obter todas as configurações atuais
+    all_configs = db.get_all_configs()
+    
+    # Abas de configuração
+    config_tabs = st.tabs([
+        "📧 Email/SMTP", 
+        "🔌 API/Integrações", 
+        "🔒 Segurança", 
+        "🛠️ Sistema Geral",
+        "📤 Import/Export",
+        "📋 Logs de Auditoria"
+    ])
+    
+    # ===========================================
+    # ABA 1: CONFIGURAÇÕES EMAIL/SMTP
+    # ===========================================
+    with config_tabs[0]:
+        render_smtp_config_section(db, all_configs, user_id)
+    
+    # ===========================================
+    # ABA 2: CONFIGURAÇÕES API/INTEGRAÇÕES
+    # ===========================================
+    with config_tabs[1]:
+        render_api_config_section(db, all_configs, user_id)
+    
+    # ===========================================
+    # ABA 3: CONFIGURAÇÕES DE SEGURANÇA
+    # ===========================================
+    with config_tabs[2]:
+        render_security_config_section(db, all_configs, user_id)
+    
+    # ===========================================
+    # ABA 4: CONFIGURAÇÕES GERAIS DO SISTEMA
+    # ===========================================
+    with config_tabs[3]:
+        render_general_config_section(db, all_configs, user_id)
+    
+    # ===========================================
+    # ABA 5: IMPORT/EXPORT E BACKUP
+    # ===========================================
+    with config_tabs[4]:
+        render_import_export_section(db, user_id)
+    
+    # ===========================================
+    # ABA 6: LOGS DE AUDITORIA
+    # ===========================================
+    with config_tabs[5]:
+        render_audit_logs_section(db, auth)
+
+def render_smtp_config_section(db, all_configs, user_id):
+    """Renderizar seção de configurações SMTP/Email com segurança aprimorada"""
+    st.subheader("📧 Configurações de Email e SMTP")
+    
+    # Obter configurações SMTP atuais
+    smtp_configs = all_configs.get('SMTP', {})
+    
+    # Verificar status de criptografia
+    encryption_available = True
+    try:
+        from encryption_utils import get_encryption_manager
+        encryption_manager = get_encryption_manager()
+        encryption_available = encryption_manager.is_encryption_available()
+    except Exception:
+        encryption_available = False
+    
+    if not encryption_available:
+        st.error("⚠️ Sistema de criptografia indisponível! Valores sensíveis podem não estar seguros.")
+    
+    st.markdown('<div class="info-message">📌 Configure o servidor SMTP para envio automático de notificações e alertas do sistema.</div>', unsafe_allow_html=True)
+    
+    # Mostrar status de configuração atual
+    smtp_enabled_status = smtp_configs.get('smtp_enabled', {}).get('value', False)
+    if smtp_enabled_status:
+        st.success("✅ SMTP está habilitado")
+    else:
+        st.info("ℹ️ SMTP está desabilitado")
+    
+    # Form de configurações SMTP
+    with st.form("smtp_config_form"):
+        col1, col2 = st.columns(2)
         
-        st.info("💡 Esta seção mostra todas as ações administrativas realizadas no sistema para fins de auditoria e segurança.")
-        
-        # Obter logs de auditoria
-        audit_logs = db.get_admin_audit_logs(limit=50)
-        
-        if audit_logs:
-            st.write(f"**Últimas {len(audit_logs)} ações administrativas:**")
+        with col1:
+            smtp_enabled = st.checkbox(
+                "Habilitar SMTP",
+                value=smtp_configs.get('smtp_enabled', {}).get('value', False),
+                help="Ativar envio de emails via SMTP"
+            )
             
-            # Cabeçalho da tabela
-            col1, col2, col3, col4, col5 = st.columns([2, 1.5, 2, 2, 2])
-            with col1:
-                st.write("**Data/Hora**")
-            with col2:
-                st.write("**Ação**")
-            with col3:
-                st.write("**Administrador**")
-            with col4:
-                st.write("**Usuário Alvo**")
-            with col5:
-                st.write("**Detalhes**")
+            smtp_host = st.text_input(
+                "Servidor SMTP",
+                value=smtp_configs.get('smtp_host', {}).get('value', ''),
+                placeholder="smtp.gmail.com",
+                help="Endereço do servidor SMTP"
+            )
             
-            st.markdown("---")
+            smtp_port = st.number_input(
+                "Porta SMTP",
+                min_value=1,
+                max_value=65535,
+                value=smtp_configs.get('smtp_port', {}).get('value', 587),
+                help="Porta do servidor SMTP (587 para TLS, 465 para SSL, 25 para não criptografado)"
+            )
             
-            # Exibir logs
-            for log in audit_logs:
-                col1, col2, col3, col4, col5 = st.columns([2, 1.5, 2, 2, 2])
-                
-                with col1:
-                    timestamp = log['timestamp'].strftime('%d/%m/%Y %H:%M')
-                    st.write(timestamp)
-                
-                with col2:
-                    # Ícones para diferentes ações
-                    action_icons = {
-                        "CREATE_USER": "➕",
-                        "UPDATE_USER_ROLE": "🔄",
-                        "DEACTIVATE_USER": "❌",
-                        "REACTIVATE_USER": "✅"
-                    }
-                    icon = action_icons.get(log['action'], "⚡")
-                    st.write(f"{icon} {log['action']}")
-                
-                with col3:
-                    admin_info = f"{log['admin_name']}"
-                    if log['admin_email']:
-                        admin_info += f" ({log['admin_email']})"
-                    st.write(admin_info)
-                
-                with col4:
-                    if log['target_name']:
-                        target_info = f"{log['target_name']}"
-                        if log['target_email']:
-                            target_info += f" ({log['target_email']})"
-                        st.write(target_info)
-                    else:
-                        st.write("-")
-                
-                with col5:
-                    details = log['details'] or "-"
-                    if len(details) > 50:
-                        details = details[:47] + "..."
-                    st.write(details)
-        else:
-            st.info("Nenhum log de auditoria encontrado.")
+            smtp_use_tls = st.checkbox(
+                "Usar TLS/SSL",
+                value=smtp_configs.get('smtp_use_tls', {}).get('value', True),
+                help="Usar criptografia TLS/SSL"
+            )
         
-        st.markdown("---")
-    
-    # Seção de backup
-    st.subheader("Backup e Exportação")
-    
-    # Opções de exportação especializadas
-    export_col1, export_col2, export_col3 = st.columns(3)
-    
-    with export_col1:
-        if st.button("📄 Prontuário Completo (PDF)"):
-            try:
-                from pdf_generator import MedicalRecordPDFGenerator
-                
-                with st.spinner("Gerando prontuário PDF..."):
-                    pdf_generator = MedicalRecordPDFGenerator(db)
-                    pdf_bytes = pdf_generator.generate_complete_medical_record()
-                    
-                    filename = f"prontuario_completo_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
-                    
-                    st.download_button(
-                        label="📅 Baixar Prontuário",
-                        data=pdf_bytes,
-                        file_name=filename,
-                        mime="application/pdf"
-                    )
-            except Exception as e:
-                st.error(f"Erro: {e}")
-    
-    with export_col2:
-        if st.button("🔬 Só Exames (PDF)"):
-            try:
-                from pdf_generator import MedicalRecordPDFGenerator
-                
-                with st.spinner("Gerando PDF de exames..."):
-                    pdf_generator = MedicalRecordPDFGenerator(db)
-                    pdf_bytes = pdf_generator.generate_lab_results_only()
-                    
-                    filename = f"exames_laboratoriais_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
-                    
-                    st.download_button(
-                        label="📅 Baixar Exames",
-                        data=pdf_bytes,
-                        file_name=filename,
-                        mime="application/pdf"
-                    )
-            except Exception as e:
-                st.error(f"Erro: {e}")
-    
-    with export_col3:
-        if st.button("📅 Timeline (PDF)"):
-            try:
-                from pdf_generator import MedicalRecordPDFGenerator
-                
-                with st.spinner("Gerando PDF da timeline..."):
-                    pdf_generator = MedicalRecordPDFGenerator(db)
-                    pdf_bytes = pdf_generator.generate_timeline_only()
-                    
-                    filename = f"timeline_medica_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
-                    
-                    st.download_button(
-                        label="📅 Baixar Timeline",
-                        data=pdf_bytes,
-                        file_name=filename,
-                        mime="application/pdf"
-                    )
-            except Exception as e:
-                st.error(f"Erro: {e}")
-    
-    st.markdown("---")
-    
-    # Opções de backup de dados
-    st.subheader("Backup de Dados")
-    backup_col1, backup_col2 = st.columns(2)
-    
-    with backup_col1:
-        if st.button("📥 Exportar Todos os Dados (JSON)"):
-            try:
-                with st.spinner("Exportando dados..."):
-                    # Coletar todos os dados
-                    export_data = {
-                        "patient_info": db.get_patient_info(),
-                        "lab_results": db.get_lab_results().to_dict('records') if not db.get_lab_results().empty else [],
-                        "medical_timeline": db.get_medical_timeline(),
-                        "medication_history": db.get_medication_history(),
-                        "export_timestamp": datetime.now().isoformat()
-                    }
-                    
-                    # Converter para JSON
-                    def json_serializer(obj):
-                        if isinstance(obj, (datetime, date)):
-                            return obj.isoformat()
-                        return str(obj)
-                    
-                    json_data = json.dumps(export_data, default=json_serializer, indent=2, ensure_ascii=False)
-                    
-                    filename = f"backup_luna_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
-                    
-                    st.download_button(
-                        label="💾 Baixar Backup JSON",
-                        data=json_data.encode('utf-8'),
-                        file_name=filename,
-                        mime="application/json"
-                    )
-                    
-                    st.success(f"✅ Backup de {len(export_data)} categorias criado!")
-                    
-            except Exception as e:
-                st.error(f"Erro ao criar backup: {e}")
-    
-    with backup_col2:
-        if st.button("🔄 Backup Sistemático"):
-            try:
-                # Simular backup sistemático (em produção seria integrado com serviços de backup)
-                backup_info = {
-                    "timestamp": datetime.now().isoformat(),
-                    "status": "completed",
-                    "tables_backed_up": ["patient_info", "lab_results", "medical_timeline", "medication_history", "patient_photos"],
-                    "backup_size": "estimado 15MB",
-                    "location": "sistema_interno"
+        with col2:
+            smtp_username = st.text_input(
+                "Usuário SMTP",
+                value=smtp_configs.get('smtp_username', {}).get('value', ''),
+                placeholder="seu_email@gmail.com",
+                help="Nome de usuário para autenticação SMTP"
+            )
+            
+            # Campo de senha com mascaramento apropriado
+            current_password_display = ""
+            if smtp_configs.get('smtp_password', {}).get('is_sensitive', False):
+                if smtp_configs.get('smtp_password', {}).get('display_value'):
+                    current_password_display = smtp_configs['smtp_password']['display_value']
+                else:
+                    current_password_display = "••••••••"
+            else:
+                current_password_display = smtp_configs.get('smtp_password', {}).get('value', '')
+            
+            password_changed = st.checkbox("🔄 Alterar senha SMTP", key="change_smtp_password")
+            if password_changed:
+                smtp_password = st.text_input(
+                    "Nova Senha SMTP",
+                    type="password",
+                    placeholder="Digite a nova senha SMTP",
+                    help="Senha ou token de aplicação para SMTP"
+                )
+            else:
+                smtp_password = smtp_configs.get('smtp_password', {}).get('value', '')
+                st.text_input(
+                    "Senha SMTP Atual",
+                    value=current_password_display,
+                    disabled=True,
+                    help="Senha criptografada - marque a opção acima para alterar"
+                )
+            
+            from_email = st.text_input(
+                "Email Remetente",
+                value=smtp_configs.get('from_email', {}).get('value', ''),
+                placeholder="noreply@seudominio.com",
+                help="Email que aparecerá como remetente"
+            )
+            
+            from_name = st.text_input(
+                "Nome do Remetente",
+                value=smtp_configs.get('from_name', {}).get('value', 'Sistema Prontuário Luna'),
+                help="Nome que aparecerá como remetente"
+            )
+        
+        # Botões de ação
+        col_save, col_test = st.columns(2)
+        
+        with col_save:
+            if st.form_submit_button("💾 Salvar Configurações SMTP", type="primary"):
+                # Salvar todas as configurações SMTP
+                smtp_config_data = {
+                    'smtp_enabled': smtp_enabled,
+                    'smtp_host': smtp_host,
+                    'smtp_port': smtp_port,
+                    'smtp_username': smtp_username,
+                    'smtp_password': smtp_password,
+                    'smtp_use_tls': smtp_use_tls,
+                    'from_email': from_email,
+                    'from_name': from_name
                 }
                 
-                st.success("✅ Backup sistemático iniciado!")
-                st.json(backup_info)
+                success_count = 0
+                for key, value in smtp_config_data.items():
+                    # Validar configuração
+                    validation = db.validate_config('SMTP', key, value)
+                    if validation['valid']:
+                        if db.save_config('SMTP', key, value, user_id):
+                            success_count += 1
+                    else:
+                        st.error(f"❌ Erro na configuração {key}: {validation['message']}")
                 
-                # Em uma implementação real, isto integraria com serviços como AWS S3, Google Cloud Storage, etc.
-                st.info("ℹ️ Em produção, este backup seria armazenado em sistema de nuvem seguro.")
+                if success_count == len(smtp_config_data):
+                    st.success("✅ Todas as configurações SMTP foram salvas com sucesso!")
+                    st.rerun()
+        
+        with col_test:
+            if st.form_submit_button("🧪 Testar Conexão SMTP"):
+                # Testar conectividade SMTP
+                smtp_test_config = {
+                    'smtp_host': smtp_host,
+                    'smtp_port': smtp_port,
+                    'smtp_username': smtp_username,
+                    'smtp_password': smtp_password,
+                    'smtp_use_tls': smtp_use_tls
+                }
                 
+                test_result = db.test_smtp_connection(smtp_test_config)
+                
+                if test_result['success']:
+                    st.success(f"✅ {test_result['message']}")
+                    st.info(f"ℹ️ {test_result['details']}")
+                else:
+                    st.error(f"❌ {test_result['message']}")
+                    st.error(f"Detalhes: {test_result['details']}")
+
+def render_api_config_section(db, all_configs, user_id):
+    """Renderizar seção de configurações API/Integrações"""
+    st.subheader("🔌 Configurações de API e Integrações")
+    
+    # Obter configurações API atuais
+    api_configs = all_configs.get('API', {})
+    
+    st.markdown('<div class="info-message">🔗 Configure integrações com APIs externas e limites de uso.</div>', unsafe_allow_html=True)
+    
+    # Form de configurações API
+    with st.form("api_config_form"):
+        # Seção OpenAI
+        st.markdown("### 🤖 Configurações OpenAI")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            openai_enabled = st.checkbox(
+                "Habilitar OpenAI",
+                value=api_configs.get('openai_enabled', {}).get('value', True),
+                help="Ativar integração com OpenAI para processamento de IA"
+            )
+            
+            openai_api_key = st.text_input(
+                "Chave API OpenAI",
+                type="password",
+                value=api_configs.get('openai_api_key', {}).get('value', ''),
+                placeholder="sk-...",
+                help="Chave da API OpenAI (mantida segura/criptografada)"
+            )
+            
+            openai_model = st.selectbox(
+                "Modelo OpenAI",
+                options=["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"],
+                index=0 if api_configs.get('openai_model', {}).get('value') == 'gpt-4' else 0,
+                help="Modelo OpenAI a ser usado por padrão"
+            )
+        
+        with col2:
+            openai_max_tokens = st.number_input(
+                "Máximo de Tokens",
+                min_value=100,
+                max_value=32000,
+                value=api_configs.get('openai_max_tokens', {}).get('value', 4000),
+                help="Limite máximo de tokens por requisição"
+            )
+            
+            api_rate_limit = st.number_input(
+                "Limite de Requisições/Hora",
+                min_value=1,
+                max_value=1000,
+                value=api_configs.get('api_rate_limit', {}).get('value', 100),
+                help="Limite de requisições à API por hora"
+            )
+            
+            webhook_url = st.text_input(
+                "URL do Webhook",
+                value=api_configs.get('webhook_url', {}).get('value', ''),
+                placeholder="https://your-webhook.com/endpoint",
+                help="URL para notificações via webhook"
+            )
+        
+        if st.form_submit_button("💾 Salvar Configurações API", type="primary"):
+            # Salvar configurações API
+            api_config_data = {
+                'openai_enabled': openai_enabled,
+                'openai_api_key': openai_api_key,
+                'openai_model': openai_model,
+                'openai_max_tokens': openai_max_tokens,
+                'api_rate_limit': api_rate_limit,
+                'webhook_url': webhook_url
+            }
+            
+            success_count = 0
+            for key, value in api_config_data.items():
+                validation = db.validate_config('API', key, value)
+                if validation['valid']:
+                    if db.save_config('API', key, value, user_id):
+                        success_count += 1
+                else:
+                    st.error(f"❌ Erro na configuração {key}: {validation['message']}")
+            
+            if success_count == len(api_config_data):
+                st.success("✅ Configurações de API salvas com sucesso!")
+                st.rerun()
+
+def render_security_config_section(db, all_configs, user_id):
+    """Renderizar seção de configurações de segurança"""
+    st.subheader("🔒 Configurações de Segurança")
+    
+    # Obter configurações de segurança atuais
+    security_configs = all_configs.get('SECURITY', {})
+    
+    st.markdown('<div class="info-message">🛡️ Configure políticas de segurança e auditoria do sistema.</div>', unsafe_allow_html=True)
+    
+    # Form de configurações de segurança
+    with st.form("security_config_form"):
+        # Políticas de senha
+        st.markdown("### 🔐 Políticas de Senha")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            password_min_length = st.number_input(
+                "Comprimento Mínimo da Senha",
+                min_value=4,
+                max_value=50,
+                value=security_configs.get('password_min_length', {}).get('value', 8),
+                help="Número mínimo de caracteres para senhas"
+            )
+            
+            password_require_special = st.checkbox(
+                "Requer Caracteres Especiais",
+                value=security_configs.get('password_require_special', {}).get('value', True),
+                help="Senhas devem conter pelo menos um caractere especial"
+            )
+            
+            password_require_numbers = st.checkbox(
+                "Requer Números",
+                value=security_configs.get('password_require_numbers', {}).get('value', True),
+                help="Senhas devem conter pelo menos um número"
+            )
+        
+        with col2:
+            password_expiry_days = st.number_input(
+                "Expiração da Senha (dias)",
+                min_value=0,
+                max_value=365,
+                value=security_configs.get('password_expiry_days', {}).get('value', 90),
+                help="Dias até expiração da senha (0 = nunca expira)"
+            )
+            
+            enable_2fa = st.checkbox(
+                "Habilitar 2FA (Futuro)",
+                value=security_configs.get('enable_2fa', {}).get('value', False),
+                help="Preparação para autenticação de dois fatores"
+            )
+        
+        # Configurações de sessão
+        st.markdown("### 🕐 Configurações de Sessão")
+        
+        col3, col4 = st.columns(2)
+        
+        with col3:
+            session_timeout_minutes = st.number_input(
+                "Timeout da Sessão (minutos)",
+                min_value=5,
+                max_value=1440,
+                value=security_configs.get('session_timeout_minutes', {}).get('value', 480),
+                help="Tempo limite para inatividade da sessão"
+            )
+            
+            max_login_attempts = st.number_input(
+                "Máximo Tentativas de Login",
+                min_value=1,
+                max_value=20,
+                value=security_configs.get('max_login_attempts', {}).get('value', 5),
+                help="Tentativas máximas antes de bloquear conta"
+            )
+        
+        with col4:
+            audit_log_retention_days = st.number_input(
+                "Retenção de Logs (dias)",
+                min_value=1,
+                max_value=3650,
+                value=security_configs.get('audit_log_retention_days', {}).get('value', 365),
+                help="Dias para manter logs de auditoria"
+            )
+        
+        if st.form_submit_button("💾 Salvar Configurações de Segurança", type="primary"):
+            # Salvar configurações de segurança
+            security_config_data = {
+                'password_min_length': password_min_length,
+                'password_require_special': password_require_special,
+                'password_require_numbers': password_require_numbers,
+                'password_expiry_days': password_expiry_days,
+                'session_timeout_minutes': session_timeout_minutes,
+                'max_login_attempts': max_login_attempts,
+                'audit_log_retention_days': audit_log_retention_days,
+                'enable_2fa': enable_2fa
+            }
+            
+            success_count = 0
+            for key, value in security_config_data.items():
+                validation = db.validate_config('SECURITY', key, value)
+                if validation['valid']:
+                    if db.save_config('SECURITY', key, value, user_id):
+                        success_count += 1
+                else:
+                    st.error(f"❌ Erro na configuração {key}: {validation['message']}")
+            
+            if success_count == len(security_config_data):
+                st.success("✅ Configurações de segurança salvas com sucesso!")
+                st.rerun()
+
+def render_general_config_section(db, all_configs, user_id):
+    """Renderizar seção de configurações gerais do sistema"""
+    st.subheader("🛠️ Configurações Gerais do Sistema")
+    
+    # Obter configurações gerais atuais
+    general_configs = all_configs.get('GENERAL', {})
+    
+    st.markdown('<div class="info-message">⚙️ Configure informações gerais e preferências do sistema.</div>', unsafe_allow_html=True)
+    
+    # Form de configurações gerais
+    with st.form("general_config_form"):
+        # Informações da aplicação
+        st.markdown("### 📱 Informações da Aplicação")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            app_name = st.text_input(
+                "Nome da Aplicação",
+                value=general_configs.get('app_name', {}).get('value', 'Prontuário Médico Digital - Luna'),
+                help="Nome exibido na aplicação"
+            )
+            
+            app_version = st.text_input(
+                "Versão",
+                value=general_configs.get('app_version', {}).get('value', '1.0.0'),
+                help="Versão atual da aplicação"
+            )
+            
+            timezone = st.selectbox(
+                "Fuso Horário",
+                options=["America/Sao_Paulo", "America/New_York", "Europe/London", "UTC"],
+                index=0,
+                help="Fuso horário padrão do sistema"
+            )
+        
+        with col2:
+            date_format = st.selectbox(
+                "Formato de Data",
+                options=["DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD"],
+                index=0,
+                help="Formato de exibição de datas"
+            )
+            
+            maintenance_mode = st.checkbox(
+                "Modo de Manutenção",
+                value=general_configs.get('maintenance_mode', {}).get('value', False),
+                help="Ativar modo de manutenção do sistema"
+            )
+        
+        # Configurações de arquivo
+        st.markdown("### 📁 Configurações de Arquivos")
+        
+        col3, col4 = st.columns(2)
+        
+        with col3:
+            max_file_size_mb = st.number_input(
+                "Tamanho Máximo de Arquivo (MB)",
+                min_value=1,
+                max_value=500,
+                value=general_configs.get('max_file_size_mb', {}).get('value', 50),
+                help="Tamanho máximo permitido para upload"
+            )
+        
+        with col4:
+            current_allowed_types = general_configs.get('allowed_file_types', {}).get('value', ['pdf', 'jpg', 'jpeg', 'png', 'mp3', 'wav', 'mp4'])
+            allowed_file_types = st.multiselect(
+                "Tipos de Arquivo Permitidos",
+                options=['pdf', 'jpg', 'jpeg', 'png', 'gif', 'mp3', 'wav', 'mp4', 'avi', 'mov', 'txt', 'doc', 'docx'],
+                default=current_allowed_types,
+                help="Tipos de arquivo permitidos para upload"
+            )
+        
+        # Configurações de backup
+        st.markdown("### 💾 Configurações de Backup")
+        
+        col5, col6 = st.columns(2)
+        
+        with col5:
+            backup_enabled = st.checkbox(
+                "Backup Automático",
+                value=general_configs.get('backup_enabled', {}).get('value', True),
+                help="Habilitar backup automático do sistema"
+            )
+        
+        with col6:
+            backup_frequency_hours = st.number_input(
+                "Frequência de Backup (horas)",
+                min_value=1,
+                max_value=168,
+                value=general_configs.get('backup_frequency_hours', {}).get('value', 24),
+                help="Intervalo entre backups automáticos"
+            )
+        
+        if st.form_submit_button("💾 Salvar Configurações Gerais", type="primary"):
+            # Salvar configurações gerais
+            general_config_data = {
+                'app_name': app_name,
+                'app_version': app_version,
+                'timezone': timezone,
+                'date_format': date_format,
+                'max_file_size_mb': max_file_size_mb,
+                'allowed_file_types': allowed_file_types,
+                'backup_enabled': backup_enabled,
+                'backup_frequency_hours': backup_frequency_hours,
+                'maintenance_mode': maintenance_mode
+            }
+            
+            success_count = 0
+            for key, value in general_config_data.items():
+                validation = db.validate_config('GENERAL', key, value)
+                if validation['valid']:
+                    if db.save_config('GENERAL', key, value, user_id):
+                        success_count += 1
+                else:
+                    st.error(f"❌ Erro na configuração {key}: {validation['message']}")
+            
+            if success_count == len(general_config_data):
+                st.success("✅ Configurações gerais salvas com sucesso!")
+                if maintenance_mode:
+                    st.warning("⚠️ Sistema agora em modo de manutenção!")
+                st.rerun()
+
+def render_import_export_section(db, user_id):
+    """Renderizar seção de import/export de configurações"""
+    st.subheader("📤 Import/Export e Backup")
+    
+    st.markdown('<div class="info-message">💾 Exporte configurações para backup ou importe de outro sistema.</div>', unsafe_allow_html=True)
+    
+    # Seção de Export
+    st.markdown("### 📤 Exportar Configurações")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("📥 Exportar Todas as Configurações", type="primary"):
+            try:
+                with st.spinner("Exportando configurações..."):
+                    export_data = db.export_configs()
+                    
+                    if export_data:
+                        # Converter para JSON
+                        json_data = json.dumps(export_data, indent=2, ensure_ascii=False)
+                        filename = f"configuracoes_sistema_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
+                        
+                        st.download_button(
+                            label="💾 Baixar Arquivo de Configurações",
+                            data=json_data.encode('utf-8'),
+                            file_name=filename,
+                            mime="application/json"
+                        )
+                        
+                        st.success("✅ Configurações exportadas com sucesso!")
+                    else:
+                        st.error("❌ Erro ao exportar configurações")
             except Exception as e:
-                st.error(f"Erro no backup: {e}")
+                st.error(f"❌ Erro na exportação: {e}")
+    
+    with col2:
+        if st.button("🔄 Reset para Padrões", help="Restaurar todas as configurações para os valores padrão"):
+            if st.session_state.get('confirm_reset', False):
+                try:
+                    with st.spinner("Resetando configurações..."):
+                        if db.reset_configs_to_default(user_id):
+                            st.success("✅ Configurações resetadas para padrão com sucesso!")
+                            st.session_state['confirm_reset'] = False
+                            st.rerun()
+                        else:
+                            st.error("❌ Erro ao resetar configurações")
+                except Exception as e:
+                    st.error(f"❌ Erro no reset: {e}")
+            else:
+                st.warning("⚠️ Clique novamente para confirmar o reset")
+                st.session_state['confirm_reset'] = True
+    
+    # Seção de Import
+    st.markdown("### 📥 Importar Configurações")
+    
+    uploaded_config = st.file_uploader(
+        "Selecione arquivo de configurações (JSON):",
+        type=['json'],
+        help="Faça upload de um arquivo de configurações exportado anteriormente"
+    )
+    
+    if uploaded_config:
+        try:
+            # Ler e validar arquivo
+            config_data = json.loads(uploaded_config.read().decode('utf-8'))
+            
+            # Exibir preview
+            st.write("**Preview das configurações a serem importadas:**")
+            
+            if 'configs' in config_data:
+                for category, configs in config_data['configs'].items():
+                    with st.expander(f"Categoria: {category} ({len(configs)} configurações)"):
+                        for key, value in configs.items():
+                            st.write(f"• **{key}**: {value.get('value', 'N/A')}")
+                
+                if st.button("🔄 Importar Configurações", type="primary"):
+                    try:
+                        with st.spinner("Importando configurações..."):
+                            if db.import_configs(config_data, user_id):
+                                st.success("✅ Configurações importadas com sucesso!")
+                                st.rerun()
+                            else:
+                                st.error("❌ Erro na importação")
+                    except Exception as e:
+                        st.error(f"❌ Erro na importação: {e}")
+            else:
+                st.error("❌ Formato de arquivo inválido")
+                
+        except json.JSONDecodeError:
+            st.error("❌ Arquivo JSON inválido")
+        except Exception as e:
+            st.error(f"❌ Erro ao processar arquivo: {e}")
+
+def render_audit_logs_section(db, auth):
+    """Renderizar seção de logs de auditoria"""
+    st.subheader("📋 Logs de Auditoria")
+    
+    st.markdown('<div class="info-message">🔍 Visualize todas as ações administrativas realizadas no sistema.</div>', unsafe_allow_html=True)
+    
+    # Filtros
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        limit = st.selectbox(
+            "Número de registros",
+            options=[25, 50, 100, 200],
+            index=1
+        )
+    
+    with col2:
+        action_filter = st.selectbox(
+            "Filtrar por ação",
+            options=["Todas", "CONFIG_UPDATE", "CREATE_USER", "UPDATE_USER_ROLE", "DEACTIVATE_USER"],
+            index=0
+        )
+    
+    with col3:
+        if st.button("🔄 Atualizar Logs"):
+            st.rerun()
+    
+    # Obter logs de auditoria
+    audit_logs = db.get_admin_audit_logs(limit=limit)
+    
+    if action_filter != "Todas":
+        audit_logs = [log for log in audit_logs if log['action'].startswith(action_filter)]
+    
+    if audit_logs:
+        st.write(f"**Exibindo {len(audit_logs)} registros de auditoria:**")
+        
+        # Cabeçalho da tabela
+        col1, col2, col3, col4, col5 = st.columns([2, 1.5, 2, 2, 2])
+        with col1:
+            st.write("**Data/Hora**")
+        with col2:
+            st.write("**Ação**")
+        with col3:
+            st.write("**Administrador**")
+        with col4:
+            st.write("**Usuário Alvo**")
+        with col5:
+            st.write("**Detalhes**")
+        
+        st.markdown("---")
+        
+        # Exibir logs
+        for log in audit_logs:
+            col1, col2, col3, col4, col5 = st.columns([2, 1.5, 2, 2, 2])
+            
+            with col1:
+                timestamp = log['timestamp'].strftime('%d/%m/%Y %H:%M')
+                st.write(timestamp)
+            
+            with col2:
+                # Ícones para diferentes ações
+                action_icons = {
+                    "CREATE_USER": "➕",
+                    "UPDATE_USER_ROLE": "🔄",
+                    "DEACTIVATE_USER": "❌",
+                    "REACTIVATE_USER": "✅",
+                    "CONFIG_UPDATE": "⚙️",
+                    "CONFIG_DELETE": "🗑️",
+                    "CONFIG_RESET": "🔄",
+                    "CONFIG_IMPORT": "📥"
+                }
+                action_key = log['action'].split('_')[0] + '_' + log['action'].split('_')[1] if '_' in log['action'] else log['action']
+                icon = action_icons.get(action_key, "⚡")
+                st.write(f"{icon} {log['action']}")
+            
+            with col3:
+                admin_info = f"{log['admin_name']}"
+                if log['admin_email']:
+                    admin_info += f" ({log['admin_email']})"
+                st.write(admin_info)
+            
+            with col4:
+                if log['target_name']:
+                    target_info = f"{log['target_name']}"
+                    if log['target_email']:
+                        target_info += f" ({log['target_email']})"
+                    st.write(target_info)
+                else:
+                    st.write("-")
+            
+            with col5:
+                details = log['details'] or "-"
+                if len(details) > 50:
+                    details = details[:47] + "..."
+                st.write(details)
+    else:
+        st.info("Nenhum log de auditoria encontrado.")
 
 def render_pdf_clinical_section(db, ai_processor, user_id):
     """Renderizar seção de notas clínicas em PDF"""
