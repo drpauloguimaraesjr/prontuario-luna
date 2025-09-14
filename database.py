@@ -57,10 +57,11 @@ class DatabaseManager:
                 )
             """)
             
-            # Adicionar colunas role e is_active se não existirem (para compatibilidade)
+            # Adicionar colunas role, is_active e last_login se não existirem (para compatibilidade)
             try:
                 cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'USER'")
                 cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE")
+                cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP")
             except Exception as e:
                 # Ignorar erro se as colunas já existem
                 pass
@@ -634,5 +635,219 @@ class DatabaseManager:
         except Exception as e:
             st.error(f"Erro ao contar SUPER_ADMINs ativos: {e}")
             return 0
+        finally:
+            conn.close()
+
+    def update_last_login(self, user_id: int) -> bool:
+        """Atualizar timestamp do último login do usuário"""
+        conn = self.get_connection()
+        if not conn:
+            return False
+        
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE users 
+                SET last_login = CURRENT_TIMESTAMP 
+                WHERE id = %s
+            """, (user_id,))
+            
+            conn.commit()
+            cursor.close()
+            return True
+        except Exception as e:
+            st.error(f"Erro ao atualizar último login: {e}")
+            return False
+        finally:
+            conn.close()
+
+    def get_users_with_filters(self, search_term: str = "", role_filter: str = "", status_filter: str = "", offset: int = 0, limit: int = 20) -> Dict[str, Any]:
+        """Buscar usuários com filtros e paginação"""
+        conn = self.get_connection()
+        if not conn:
+            return {'users': [], 'total': 0}
+        
+        try:
+            cursor = conn.cursor()
+            
+            # Construir query com filtros
+            where_conditions = []
+            params = []
+            
+            if search_term:
+                where_conditions.append("(LOWER(name) LIKE %s OR LOWER(email) LIKE %s)")
+                search_pattern = f"%{search_term.lower()}%"
+                params.extend([search_pattern, search_pattern])
+            
+            if role_filter and role_filter != "ALL":
+                where_conditions.append("role = %s")
+                params.append(role_filter)
+            
+            if status_filter == "ACTIVE":
+                where_conditions.append("is_active = TRUE")
+            elif status_filter == "INACTIVE":
+                where_conditions.append("is_active = FALSE")
+            
+            where_clause = " WHERE " + " AND ".join(where_conditions) if where_conditions else ""
+            
+            # Query para contar total
+            count_query = f"SELECT COUNT(*) FROM users{where_clause}"
+            cursor.execute(count_query, params)
+            total = cursor.fetchone()[0]
+            
+            # Query para buscar usuários com paginação
+            users_query = f"""
+                SELECT id, email, name, role, is_active, created_at, last_login 
+                FROM users{where_clause}
+                ORDER BY created_at DESC
+                LIMIT %s OFFSET %s
+            """
+            cursor.execute(users_query, params + [limit, offset])
+            
+            users = []
+            for row in cursor.fetchall():
+                users.append({
+                    'id': row[0],
+                    'email': row[1],
+                    'name': row[2],
+                    'role': row[3] or ROLE_USER,
+                    'is_active': row[4],
+                    'created_at': row[5],
+                    'last_login': row[6]
+                })
+            
+            cursor.close()
+            return {'users': users, 'total': total}
+        except Exception as e:
+            st.error(f"Erro ao buscar usuários: {e}")
+            return {'users': [], 'total': 0}
+        finally:
+            conn.close()
+
+    def get_user_statistics(self) -> Dict[str, int]:
+        """Obter estatísticas dos usuários"""
+        conn = self.get_connection()
+        if not conn:
+            return {}
+        
+        try:
+            cursor = conn.cursor()
+            
+            stats = {}
+            
+            # Total de usuários
+            cursor.execute("SELECT COUNT(*) FROM users")
+            stats['total'] = cursor.fetchone()[0]
+            
+            # Usuários ativos
+            cursor.execute("SELECT COUNT(*) FROM users WHERE is_active = TRUE")
+            stats['active'] = cursor.fetchone()[0]
+            
+            # Usuários inativos
+            cursor.execute("SELECT COUNT(*) FROM users WHERE is_active = FALSE")
+            stats['inactive'] = cursor.fetchone()[0]
+            
+            # Por role
+            for role in ALL_ROLES:
+                cursor.execute("SELECT COUNT(*) FROM users WHERE role = %s", (role,))
+                stats[f'role_{role.lower()}'] = cursor.fetchone()[0]
+            
+            cursor.close()
+            return stats
+        except Exception as e:
+            st.error(f"Erro ao obter estatísticas: {e}")
+            return {}
+        finally:
+            conn.close()
+
+    def update_user_profile(self, user_id: int, name: str, email: str, admin_user_id: int) -> bool:
+        """Atualizar perfil do usuário (nome e email)"""
+        conn = self.get_connection()
+        if not conn:
+            return False
+        
+        try:
+            cursor = conn.cursor()
+            
+            # Verificar se o email já está em uso por outro usuário
+            cursor.execute("SELECT id FROM users WHERE email = %s AND id != %s", (email, user_id))
+            if cursor.fetchone():
+                st.error("Este email já está em uso por outro usuário.")
+                return False
+            
+            # Obter dados atuais para log
+            cursor.execute("SELECT name, email FROM users WHERE id = %s", (user_id,))
+            old_data = cursor.fetchone()
+            if not old_data:
+                st.error("Usuário não encontrado.")
+                return False
+            
+            old_name, old_email = old_data
+            
+            # Atualizar usuário
+            cursor.execute("""
+                UPDATE users 
+                SET name = %s, email = %s 
+                WHERE id = %s
+            """, (name, email, user_id))
+            
+            # Log da ação
+            self.log_admin_action(
+                admin_user_id=admin_user_id,
+                target_user_id=user_id,
+                action="UPDATE_USER_PROFILE",
+                old_value=f"name: {old_name}, email: {old_email}",
+                new_value=f"name: {name}, email: {email}",
+                details=f"Perfil atualizado: {old_name} → {name}, {old_email} → {email}"
+            )
+            
+            conn.commit()
+            cursor.close()
+            return True
+        except Exception as e:
+            st.error(f"Erro ao atualizar perfil: {e}")
+            return False
+        finally:
+            conn.close()
+
+    def reset_user_password(self, user_id: int, new_password_hash: str, admin_user_id: int) -> bool:
+        """Resetar senha do usuário (apenas administradores)"""
+        conn = self.get_connection()
+        if not conn:
+            return False
+        
+        try:
+            cursor = conn.cursor()
+            
+            # Obter dados do usuário para log
+            cursor.execute("SELECT name, email FROM users WHERE id = %s", (user_id,))
+            user_data = cursor.fetchone()
+            if not user_data:
+                st.error("Usuário não encontrado.")
+                return False
+            
+            user_name, user_email = user_data
+            
+            # Atualizar senha
+            cursor.execute("""
+                UPDATE users 
+                SET password_hash = %s 
+                WHERE id = %s
+            """, (new_password_hash, user_id))
+            
+            # Log da ação
+            self.log_admin_action(
+                admin_user_id=admin_user_id,
+                target_user_id=user_id,
+                action="RESET_PASSWORD",
+                details=f"Senha resetada para {user_name} ({user_email})"
+            )
+            
+            conn.commit()
+            cursor.close()
+            return True
+        except Exception as e:
+            st.error(f"Erro ao resetar senha: {e}")
+            return False
         finally:
             conn.close()
