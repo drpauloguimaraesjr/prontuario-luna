@@ -306,7 +306,7 @@ class AuthManager:
                 submit_button = st.form_submit_button(
                     "🔐 Alterar Senha",
                     type="primary",
-                    use_container_width=True
+                    width="stretch"
                 )
             
             with col_logout:
@@ -980,13 +980,13 @@ class AuthManager:
                     create_button = st.form_submit_button(
                         "✅ Criar Usuário",
                         type="primary",
-                        use_container_width=True
+                        width="stretch"
                     )
                 
                 with col6:
                     cancel_button = st.form_submit_button(
                         "❌ Cancelar",
-                        use_container_width=True
+                        width="stretch"
                     )
                 
                 # Validação e criação
@@ -1148,11 +1148,11 @@ class AuthManager:
             # Ações
             with col4:
                 if can_edit:
-                    if st.button(f"✏️ Editar", key=f"edit_user_{user['id']}", use_container_width=True):
+                    if st.button(f"✏️ Editar", key=f"edit_user_{user['id']}", width="stretch"):
                         st.session_state[f'edit_modal_{user["id"]}'] = True
                         st.rerun()
                     
-                    if st.button(f"🔑 Reset Senha", key=f"reset_pwd_{user['id']}", use_container_width=True):
+                    if st.button(f"🔑 Reset Senha", key=f"reset_pwd_{user['id']}", width="stretch"):
                         st.session_state[f'reset_modal_{user["id"]}'] = True
                         st.rerun()
                 else:
@@ -1278,16 +1278,16 @@ class AuthManager:
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            if st.button("📤 Exportar Lista de Usuários", use_container_width=True):
+            if st.button("📤 Exportar Lista de Usuários", width="stretch"):
                 self._export_users_list(db_manager)
         
         with col2:
-            if st.button("📊 Relatório de Auditoria", use_container_width=True):
+            if st.button("📊 Relatório de Auditoria", width="stretch"):
                 self._show_audit_report(db_manager)
         
         with col3:
             if self.is_super_admin():
-                if st.button("🔄 Sincronizar Dados", use_container_width=True):
+                if st.button("🔄 Sincronizar Dados", width="stretch"):
                     st.info("🔄 Funcionalidade de sincronização em desenvolvimento...")
     
     def _export_users_list(self, db_manager):
@@ -1330,7 +1330,7 @@ class AuthManager:
             data=csv_data,
             file_name=filename,
             mime="text/csv",
-            use_container_width=True
+            width="stretch"
         )
         
         st.success(f"✅ Lista de {len(users)} usuários pronta para download!")

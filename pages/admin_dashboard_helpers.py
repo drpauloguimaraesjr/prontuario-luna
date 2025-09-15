@@ -35,7 +35,7 @@ def render_medical_trends_charts(trends_data):
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)'
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         else:
             st.info("Nenhum dado de exames por mês.")
     
@@ -58,7 +58,7 @@ def render_medical_trends_charts(trends_data):
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)'
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         else:
             st.info("Nenhum dado de tipos de exames.")
     
@@ -79,7 +79,7 @@ def render_medical_trends_charts(trends_data):
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)'
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.info("Nenhum dado de eventos médicos por mês.")
 
@@ -105,7 +105,7 @@ def render_user_activity_charts(db):
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)'
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         else:
             st.info("Nenhum dado de login disponível.")
     
@@ -137,7 +137,7 @@ def render_user_activity_charts(db):
                         color_discrete_sequence=['#FF69B4', '#FFB6C1', '#F0E68C']
                     )
                     fig.update_layout(height=400)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
                 else:
                     st.info("Nenhum dado de roles disponível.")
         except Exception as e:
@@ -159,7 +159,7 @@ def render_exam_analysis_charts(trends_data):
                 color_discrete_sequence=['#FF69B4', '#FFB6C1', '#DDA0DD', '#F0E68C', '#98FB98']
             )
             fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         else:
             st.info("Nenhum dado de medicamentos disponível.")
     
@@ -206,7 +206,7 @@ def render_exam_analysis_charts(trends_data):
                 paper_bgcolor='rgba(0,0,0,0)'
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         else:
             st.info("Dados insuficientes para análise temporal.")
 
@@ -227,7 +227,7 @@ def render_system_performance_charts(db_info, metrics):
                 color_continuous_scale=['#FFB6C1', '#FF69B4', '#C71585']
             )
             fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         else:
             st.info("Informações de tabelas não disponíveis.")
     
@@ -266,7 +266,7 @@ def render_system_performance_charts(db_info, metrics):
             yaxis_title="Valores"
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 def render_recent_activity_widget(recent_activity):
     """Renderizar widget de atividade recente"""
@@ -338,7 +338,7 @@ def export_dashboard_data(metrics, trends_data, recent_activity):
             data=json_data,
             file_name=f"dashboard_data_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
             mime="application/json",
-            use_container_width=True
+            width="stretch"
         )
         
         # Também criar CSV das métricas principais
@@ -350,7 +350,7 @@ def export_dashboard_data(metrics, trends_data, recent_activity):
             data=csv_data,
             file_name=f"dashboard_metrics_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
             mime="text/csv",
-            use_container_width=True
+            width="stretch"
         )
         
         st.success("✅ Dados do dashboard prontos para download!")

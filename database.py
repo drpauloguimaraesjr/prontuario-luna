@@ -5,6 +5,7 @@ from datetime import datetime
 import os
 from typing import Dict, List, Optional, Any
 import streamlit as st
+from sqlalchemy import create_engine, text
 from encryption_utils import get_encryption_manager, should_encrypt_config, is_sensitive_config
 
 # Role constants
@@ -26,7 +27,31 @@ class DatabaseManager:
             'password': os.getenv('PGPASSWORD'),
             'port': os.getenv('PGPORT', 5432)
         }
+        
+        # Create SQLAlchemy engine for pandas operations
+        database_url = f"postgresql://{self.connection_params['user']}:{self.connection_params['password']}@{self.connection_params['host']}:{self.connection_params['port']}/{self.connection_params['database']}"
+        self.engine = create_engine(database_url)
+        
+        # Validate database connectivity
+        self._validate_database_connectivity()
         self.init_database()
+    
+    def _validate_database_connectivity(self):
+        """Validar conectividade do banco de dados na inicialização"""
+        try:
+            # Test connection with SQLAlchemy engine
+            with self.engine.connect() as conn:
+                result = conn.execute(text("SELECT 1"))
+                result.fetchone()
+        except Exception as e:
+            app_env = os.getenv('APP_ENV', '').lower()
+            is_production = app_env == 'production'
+            error_msg = f"FALHA CRÍTICA: Não foi possível conectar ao banco de dados: {e}"
+            
+            if is_production:
+                raise ConnectionError(error_msg)
+            else:
+                st.error(f"⚠️ WARNING: {error_msg}")
     
     def get_connection(self):
         """Obter conexão com o banco de dados"""
@@ -295,23 +320,19 @@ class DatabaseManager:
     
     def get_lab_results(self) -> pd.DataFrame:
         """Obter todos os resultados laboratoriais como DataFrame"""
-        conn = self.get_connection()
-        if not conn:
-            return pd.DataFrame()
-        
         try:
             query = """
                 SELECT test_date, test_name, test_value, unit, lab_name, doctor_name, reference_range
                 FROM lab_results
                 ORDER BY test_date DESC, test_name
             """
-            df = pd.read_sql_query(query, conn)
+            df = pd.read_sql_query(query, self.engine)
+            # Normalize column names to strings to prevent mixed-type warnings
+            df.columns = df.columns.astype(str)
             return df
         except Exception as e:
             st.error(f"Erro ao buscar resultados de exames: {e}")
             return pd.DataFrame()
-        finally:
-            conn.close()
     
     def get_lab_results_pivot(self) -> pd.DataFrame:
         """Obter resultados laboratoriais em formato de tabela dinâmica (exames como linhas, datas como colunas)"""
@@ -327,6 +348,10 @@ class DatabaseManager:
                 values='test_value',
                 aggfunc='first'
             )
+            # Normalize column names to strings to prevent mixed-type warnings
+            pivot_df.columns = pivot_df.columns.astype(str)
+            # Normalize index to strings as well
+            pivot_df.index = pivot_df.index.astype(str)
             return pivot_df
         except Exception as e:
             st.error(f"Erro ao criar tabela pivô: {e}")
@@ -1008,33 +1033,25 @@ class DatabaseManager:
     
     def get_login_activity_data(self, days: int = 30) -> pd.DataFrame:
         """Obter dados de atividade de login dos últimos N dias"""
-        conn = self.get_connection()
-        if not conn:
-            return pd.DataFrame()
-        
         try:
-            query = """
+            query = text("""
                 SELECT DATE(last_login) as login_date, COUNT(*) as login_count
                 FROM users 
-                WHERE last_login >= NOW() - INTERVAL '%s days'
+                WHERE last_login >= NOW() - INTERVAL :days_param
                   AND last_login IS NOT NULL
                 GROUP BY DATE(last_login)
                 ORDER BY login_date
-            """
-            df = pd.read_sql_query(query, conn, params=[days])
+            """)
+            df = pd.read_sql_query(query, self.engine, params={'days_param': f'{days} days'})
+            # Normalize column names to strings to prevent mixed-type warnings
+            df.columns = df.columns.astype(str)
             return df
         except Exception as e:
             st.error(f"Erro ao obter dados de login: {e}")
             return pd.DataFrame()
-        finally:
-            conn.close()
     
     def get_medical_trends_data(self) -> Dict[str, pd.DataFrame]:
         """Obter dados de tendências médicas para gráficos"""
-        conn = self.get_connection()
-        if not conn:
-            return {}
-        
         try:
             data = {}
             
@@ -1045,7 +1062,9 @@ class DatabaseManager:
                 GROUP BY DATE_TRUNC('month', test_date)
                 ORDER BY month
             """
-            data['exams_by_month'] = pd.read_sql_query(query, conn)
+            df = pd.read_sql_query(query, self.engine)
+            df.columns = df.columns.astype(str)
+            data['exams_by_month'] = df
             
             # Tipos de exames mais comuns
             query = """
@@ -1055,7 +1074,9 @@ class DatabaseManager:
                 ORDER BY count DESC
                 LIMIT 10
             """
-            data['common_tests'] = pd.read_sql_query(query, conn)
+            df = pd.read_sql_query(query, self.engine)
+            df.columns = df.columns.astype(str)
+            data['common_tests'] = df
             
             # Timeline de eventos médicos
             query = """
@@ -1064,7 +1085,9 @@ class DatabaseManager:
                 GROUP BY DATE_TRUNC('month', event_date)
                 ORDER BY month
             """
-            data['medical_events_by_month'] = pd.read_sql_query(query, conn)
+            df = pd.read_sql_query(query, self.engine)
+            df.columns = df.columns.astype(str)
+            data['medical_events_by_month'] = df
             
             # Medicamentos por categoria (usando route como proxy)
             query = """
@@ -1074,15 +1097,15 @@ class DatabaseManager:
                 GROUP BY route
                 ORDER BY count DESC
             """
-            data['medication_routes'] = pd.read_sql_query(query, conn)
+            df = pd.read_sql_query(query, self.engine)
+            df.columns = df.columns.astype(str)
+            data['medication_routes'] = df
             
             return data
             
         except Exception as e:
             st.error(f"Erro ao obter dados de tendências: {e}")
             return {}
-        finally:
-            conn.close()
     
     def get_recent_activity(self, limit: int = 20) -> List[Dict[str, Any]]:
         """Obter atividade recente do sistema"""

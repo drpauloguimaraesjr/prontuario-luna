@@ -11,7 +11,7 @@ deploymentTarget = "autoscale"
 run = ["streamlit", "run", "app.py", "--server.port", "5000"]
 
 [workflows]
-runButton = "Sistema Completo"
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Project"
@@ -34,31 +34,9 @@ waitForPort = 5000
 [workflows.workflow.metadata]
 outputType = "webview"
 
-[[workflows.workflow]]
-name = "Admin Panel"
-author = 44652201
-mode = "parallel"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "streamlit run app_admin.py --server.port 5001 --server.address 0.0.0.0"
-
-[[workflows.workflow]]
-name = "Sistema Completo"
-author = 44652201
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "streamlit run app.py --server.port 5000 --server.address 0.0.0.0"
-
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 5001
-externalPort = 4200
 
 [[ports]]
 localPort = 34295
@@ -73,5 +51,5 @@ localPort = 41139
 externalPort = 3001
 
 [[ports]]
-localPort = 45405
+localPort = 45775
 externalPort = 3003

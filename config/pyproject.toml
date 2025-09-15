@@ -19,6 +19,5 @@ dependencies = [
     "python-multipart>=0.0.20",
     "qrcode[pil]>=8.2",
     "reportlab>=4.4.3",
-    "sqlalchemy>=2.0.43",
     "streamlit>=1.49.1",
 ]

@@ -27,12 +27,6 @@ from pages.admin_dashboard_helpers import (
 def run_admin_page(db, auth):
     """Executar a página administrativa com autenticação"""
     
-    st.set_page_config(
-        page_title="Administração - Prontuário Luna",
-        page_icon="🔐",
-        layout="wide"
-    )
-    
     # Verificar autenticação
     if not auth.require_auth(redirect_to_login=True):
         return
@@ -368,7 +362,7 @@ def render_pdf_upload_section(db, ai_processor, user_id):
         # Criar dataframe editável
         edited_df = st.data_editor(
             lab_results,
-            use_container_width=True,
+            width="stretch",
             num_rows="dynamic",
             column_config={
                 "test_date": st.column_config.DateColumn("Data do Exame"),
@@ -424,7 +418,7 @@ def process_uploaded_pdfs(uploaded_files, db, ai_processor, user_id):
         # Exibir resumo
         st.subheader("Resumo dos Dados Extraídos")
         summary_df = pd.DataFrame(processed_results)
-        st.dataframe(summary_df, use_container_width=True)
+        st.dataframe(summary_df, width="stretch")
     else:
         st.warning("Nenhum dado foi extraído dos arquivos.")
 
@@ -647,7 +641,7 @@ def render_medications_section(db, ai_processor, user_id):
         med_df['start_date'] = med_df['start_date'].apply(format_date)
         med_df['end_date'] = med_df['end_date'].apply(lambda x: format_date(x) if x else "Em uso")
         
-        st.dataframe(med_df, use_container_width=True)
+        st.dataframe(med_df, width="stretch")
     else:
         st.info("Nenhum medicamento registrado ainda.")
     

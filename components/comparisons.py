@@ -198,7 +198,7 @@ class ComparisonComponent:
         )
         
         # Exibir gráfico
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         
         # Opções de exportação do gráfico
         self._render_chart_export_options(fig, selected_tests, chart_type, show_markers, show_trend, normalize_values)
@@ -532,7 +532,7 @@ class ComparisonComponent:
         # Exibir tabela com classificação e filtragem
         st.dataframe(
             display_df,
-            use_container_width=True,
+            width="stretch",
             height=min(400, len(display_df) * 35 + 100)
         )
         

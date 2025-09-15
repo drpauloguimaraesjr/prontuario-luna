@@ -126,7 +126,7 @@ class LabResultsComponent:
         # Exibir com estilo personalizado
         st.dataframe(
             display_df,
-            use_container_width=True,
+            width="stretch",
             height=min(600, len(display_df) * 35 + 100)
         )
         
@@ -140,6 +140,9 @@ class LabResultsComponent:
         
         # Formatar cabeçalhos das colunas (datas)
         display_df.columns = [col.strftime('%d/%m/%Y') for col in display_df.columns]
+        
+        # Convert to object dtype first to avoid dtype conflicts when setting string values
+        display_df = display_df.astype('object')
         
         # Formatar valores com unidades se solicitado
         if filters.get('show_units', True):

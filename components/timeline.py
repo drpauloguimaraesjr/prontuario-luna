@@ -113,7 +113,7 @@ class TimelineComponent:
             margin=dict(t=60, b=40, l=40, r=40)
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     
     def _render_timeline_navigation(self, events):
         """Renderizar controles de navegação da linha do tempo"""
@@ -305,7 +305,7 @@ class TimelineComponent:
                     showlegend=False
                 )
                 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
     
     def get_timeline_summary(self):
         """Obter um resumo da linha do tempo para relatórios"""

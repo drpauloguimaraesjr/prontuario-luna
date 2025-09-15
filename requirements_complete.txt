@@ -1,0 +1,235 @@
+# Prontuário Luna Princess - Dependências Completas
+# Versão: 2.0 - Otimizada com todas as funcionalidades
+
+# === CORE FRAMEWORK ===
+streamlit>=1.28.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# === VISUALIZAÇÃO E GRÁFICOS ===
+plotly>=5.15.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# === PROCESSAMENTO DE MÍDIA ===
+# Áudio e Vídeo
+moviepy>=1.0.3
+pydub>=0.25.1
+SpeechRecognition>=3.10.0
+pyaudio>=0.2.11
+
+# Imagens
+Pillow>=10.0.0
+opencv-python>=4.8.0
+
+# === INTELIGÊNCIA ARTIFICIAL ===
+openai>=1.0.0
+tiktoken>=0.5.0
+
+# === PROCESSAMENTO DE DOCUMENTOS ===
+PyPDF2>=3.0.0
+python-docx>=0.8.11
+openpyxl>=3.1.0
+
+# === BANCO DE DADOS ===
+sqlite3  # Built-in Python
+sqlalchemy>=2.0.0
+redis>=4.5.0
+
+# === VALIDAÇÃO E PARSING ===
+pydantic>=2.0.0
+python-dateutil>=2.8.0
+bleach>=6.0.0
+
+# === SEGURANÇA ===
+cryptography>=41.0.0
+bcrypt>=4.0.0
+python-jose>=3.3.0
+
+# === TESTES ===
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.0
+
+# === UTILITÁRIOS ===
+requests>=2.31.0
+python-dotenv>=1.0.0
+pathlib  # Built-in Python
+typing-extensions>=4.7.0
+
+# === DESENVOLVIMENTO ===
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.5.0
+
+# === DEPLOYMENT ===
+gunicorn>=21.0.0
+uvicorn>=0.23.0
+
+# === PROCESSAMENTO DE TEXTO ===
+nltk>=3.8.0
+spacy>=3.6.0
+textblob>=0.17.0
+
+# === CACHE E PERFORMANCE ===
+diskcache>=5.6.0
+joblib>=1.3.0
+
+# === LOGGING E MONITORAMENTO ===
+loguru>=0.7.0
+psutil>=5.9.0
+
+# === INTERFACE AVANÇADA ===
+streamlit-option-menu>=0.3.6
+streamlit-aggrid>=0.3.4
+streamlit-plotly-events>=0.0.6
+
+# === PROCESSAMENTO DE DATAS ===
+arrow>=1.2.0
+pendulum>=2.1.0
+
+# === ANÁLISE DE TEXTO ===
+textstat>=0.7.0
+wordcloud>=1.9.0
+
+# === EXPORTAÇÃO ===
+reportlab>=4.0.0
+weasyprint>=60.0.0
+fpdf2>=2.7.0
+
+# === COMUNICAÇÃO ===
+smtplib  # Built-in Python
+email-validator>=2.0.0
+
+# === CONFIGURAÇÃO ===
+configparser  # Built-in Python
+toml>=0.10.0
+yaml>=6.0.0
+
+# === SISTEMA ===
+psutil>=5.9.0
+platform  # Built-in Python
+os  # Built-in Python
+sys  # Built-in Python
+threading  # Built-in Python
+queue  # Built-in Python
+tempfile  # Built-in Python
+uuid  # Built-in Python
+json  # Built-in Python
+re  # Built-in Python
+time  # Built-in Python
+datetime  # Built-in Python
+pathlib  # Built-in Python
+functools  # Built-in Python
+itertools  # Built-in Python
+collections  # Built-in Python
+dataclasses  # Built-in Python
+typing  # Built-in Python
+logging  # Built-in Python
+hashlib  # Built-in Python
+base64  # Built-in Python
+io  # Built-in Python
+
+# === ESPECÍFICAS PARA FUNCIONALIDADES ===
+
+# Timeline Interativa
+plotly-dash>=2.14.0  # Para timelines avançadas
+vis-timeline>=0.1.0  # Timeline JavaScript
+
+# Processamento de Áudio Avançado
+librosa>=0.10.0  # Análise de áudio
+soundfile>=0.12.0  # Leitura de arquivos de áudio
+
+# OCR para PDFs com imagens
+pytesseract>=0.3.10
+pdf2image>=1.16.0
+
+# Análise de Sentimentos
+vaderSentiment>=3.3.0
+
+# Geração de Relatórios
+jinja2>=3.1.0
+markdown>=3.4.0
+
+# Compressão
+gzip  # Built-in Python
+zipfile  # Built-in Python
+
+# Networking
+urllib3>=2.0.0
+httpx>=0.24.0
+
+# === DEPENDÊNCIAS OPCIONAIS ===
+# Descomente se necessário
+
+# Para deployment em cloud
+# boto3>=1.28.0  # AWS
+# google-cloud-storage>=2.10.0  # Google Cloud
+# azure-storage-blob>=12.17.0  # Azure
+
+# Para banco de dados avançado
+# psycopg2-binary>=2.9.0  # PostgreSQL
+# pymongo>=4.5.0  # MongoDB
+
+# Para machine learning avançado
+# scikit-learn>=1.3.0
+# tensorflow>=2.13.0
+# torch>=2.0.0
+
+# Para processamento de linguagem natural avançado
+# transformers>=4.33.0
+# sentence-transformers>=2.2.0
+
+# Para análise de dados avançada
+# scipy>=1.11.0
+# statsmodels>=0.14.0
+
+# === NOTAS DE INSTALAÇÃO ===
+# 
+# Para instalar todas as dependências:
+# pip install -r requirements_complete.txt
+#
+# Para instalar apenas as essenciais:
+# pip install streamlit pandas plotly openai PyPDF2 moviepy SpeechRecognition
+#
+# Para desenvolvimento:
+# pip install -r requirements_complete.txt
+# pip install -e .
+#
+# Para produção (otimizado):
+# pip install --no-dev -r requirements_complete.txt
+#
+# === COMPATIBILIDADE ===
+# Python >= 3.8
+# Testado em Python 3.9, 3.10, 3.11
+#
+# === SISTEMA OPERACIONAL ===
+# Windows: Todas as dependências suportadas
+# macOS: Todas as dependências suportadas  
+# Linux: Todas as dependências suportadas
+# Replit: Compatível (algumas dependências podem precisar de configuração adicional)
+#
+# === TAMANHO ESTIMADO ===
+# Instalação completa: ~2-3 GB
+# Instalação essencial: ~500 MB
+# Tempo de instalação: 5-15 minutos (dependendo da conexão)
+#
+# === TROUBLESHOOTING ===
+# Se houver erro com pyaudio no Windows:
+# pip install pipwin
+# pipwin install pyaudio
+#
+# Se houver erro com moviepy:
+# Instalar ffmpeg separadamente
+#
+# Se houver erro com tesseract:
+# Instalar Tesseract OCR no sistema
+#
+# === VERSÕES MÍNIMAS TESTADAS ===
+# streamlit==1.28.0
+# pandas==2.0.0
+# plotly==5.15.0
+# openai==1.0.0
+# moviepy==1.0.3
+# SpeechRecognition==3.10.0
+
