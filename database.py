@@ -6,7 +6,6 @@ import os
 from typing import Dict, List, Optional, Any
 import streamlit as st
 from sqlalchemy import create_engine, text
-from functools import lru_cache
 from encryption_utils import get_encryption_manager, should_encrypt_config, is_sensitive_config
 
 # Role constants
