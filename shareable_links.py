@@ -522,8 +522,11 @@ def render_shared_medication_chart(config: Dict[str, Any], db):
     
     if medications:
         # Implementar visualização de medicamentos
-        from app import render_medication_timeline
-        render_medication_timeline(medications)
+        st.write("**Medicamentos registrados:**")
+        for med in medications:
+            st.write(f"• **{med.get('name', 'N/A')}** - {med.get('dose', 'N/A')}")
+            if med.get('notes'):
+                st.write(f"  *{med['notes']}*")
     else:
         st.info("Nenhum medicamento registrado")
 
@@ -598,9 +601,11 @@ def render_shared_complete_record(config: Dict[str, Any], db):
     timeline_events = db.get_medical_timeline()
     if timeline_events:
         with st.expander("📅 Linha do Tempo"):
-            from components.timeline import Timeline
-            timeline = Timeline(db)
-            timeline._render_timeline_chart(timeline_events)
+            st.write("**Eventos registrados:**")
+            for event in timeline_events:
+                st.write(f"• **{event['title']}** - {event['event_date']}")
+                if event.get('description'):
+                    st.write(f"  {event['description']}")
     
     # Mostrar medicamentos
     medications = db.get_medication_history()

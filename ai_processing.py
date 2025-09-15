@@ -8,8 +8,8 @@ import pdfplumber
 import streamlit as st
 from openai import OpenAI
 
-# o modelo mais recente da OpenAI é "gpt-5" que foi lançado em 7 de agosto de 2025.
-# não altere isso a menos que explicitamente solicitado pelo usuário
+# Usando GPT-4 como modelo principal para processamento de IA
+# Para usar outros modelos, altere conforme necessário
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -85,7 +85,7 @@ class AIProcessor:
             """
 
             response = self.client.chat.completions.create(
-                model="gpt-5",
+                model="gpt-4",
                 messages=[
                     {
                         "role": "system",
@@ -156,7 +156,7 @@ class AIProcessor:
             """
 
             response = self.client.chat.completions.create(
-                model="gpt-5",
+                model="gpt-4",
                 messages=[
                     {
                         "role": "system",
@@ -207,7 +207,7 @@ class AIProcessor:
             """
 
             response = self.client.chat.completions.create(
-                model="gpt-5",
+                model="gpt-4",
                 messages=[
                     {
                         "role": "system",
@@ -242,7 +242,7 @@ class AIProcessor:
             """
 
             response = self.client.chat.completions.create(
-                model="gpt-5",
+                model="gpt-4",
                 messages=[
                     {
                         "role": "system",
@@ -284,7 +284,7 @@ class AIProcessor:
             """
 
             response = self.client.chat.completions.create(
-                model="gpt-5",
+                model="gpt-4",
                 messages=[
                     {
                         "role": "system",
@@ -348,7 +348,7 @@ class AIProcessor:
             """
 
             response = self.client.chat.completions.create(
-                model="gpt-5",
+                model="gpt-4",
                 messages=[
                     {
                         "role": "system",

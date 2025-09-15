@@ -70,29 +70,17 @@ class EncryptionManager:
             env_key = os.getenv('ENCRYPTION_KEY')
             
             if not env_key or not env_key.strip():
-                if is_production:
-                    # PRODUÇÃO: Falha crítica - não há fallbacks
-                    error_msg = "ENCRYPTION_KEY environment variable is required in production"
-                    logging.critical("Missing ENCRYPTION_KEY in production environment")
-                    raise ValueError(error_msg)
-                else:
-                    # DESENVOLVIMENTO: Gerar chave temporária (sem logs)
-                    temp_key = Fernet.generate_key()
-                    self._fernet = Fernet(temp_key)
-                    logging.warning("Using temporary key in development. Configure ENCRYPTION_KEY for production.")
-                    return
+                # CRÍTICO: Sempre falhar se ENCRYPTION_KEY não estiver configurada
+                error_msg = "ENCRYPTION_KEY environment variable is required"
+                logging.critical("Missing ENCRYPTION_KEY environment variable")
+                raise ValueError(error_msg)
             
             # VALIDAÇÃO RIGOROSA: Verificar força da chave
             is_valid, validation_msg = self._validate_encryption_key_strength(env_key, is_production)
             if not is_valid:
-                if is_production:
-                    logging.critical(f"Invalid ENCRYPTION_KEY in production: {validation_msg}")
-                    raise ValueError(f"Invalid ENCRYPTION_KEY: {validation_msg}")
-                else:
-                    logging.warning(f"{validation_msg}. Generating temporary key.")
-                    temp_key = Fernet.generate_key()
-                    self._fernet = Fernet(temp_key)
-                    return
+                # CRÍTICO: Sempre falhar se ENCRYPTION_KEY for inválida
+                logging.critical(f"Invalid ENCRYPTION_KEY: {validation_msg}")
+                raise ValueError(f"Invalid ENCRYPTION_KEY: {validation_msg}")
             
             # Múltiplas tentativas de interpretação da chave
             key_attempts = []
@@ -154,41 +142,14 @@ class EncryptionManager:
                     continue
             
             # Se nenhuma tentativa funcionou
-            if is_production:
-                # PRODUÇÃO: Falha crítica - chave inválida
-                logging.critical("Invalid ENCRYPTION_KEY format in production environment")
-                raise ValueError("Invalid ENCRYPTION_KEY format. Please verify the key configuration.")
-            else:
-                # DESENVOLVIMENTO: Gerar nova chave (sem logs)
-                new_key = Fernet.generate_key()
-                self._fernet = Fernet(new_key)
-                logging.warning("Invalid key format. Using temporary key in development.")
-                logging.warning("Configure valid ENCRYPTION_KEY for production.")
+            # CRÍTICO: Sempre falhar se formato da chave for inválido
+            logging.critical("Invalid ENCRYPTION_KEY format")
+            raise ValueError("Invalid ENCRYPTION_KEY format. Please verify the key configuration.")
                              
         except Exception as e:
-            app_env = os.getenv('APP_ENV', '').lower()
-            is_production = app_env == 'production'
-            
-            if is_production:
-                # PRODUÇÃO: Falha crítica - log interno sem exposição
-                logging.critical(f"Encryption system initialization failed: {str(e)}")
-                # Mensagem genérica ao usuário - não expor detalhes internos
-                raise ValueError("Encryption system initialization failed. Contact system administrator.") from None
-            else:
-                # DESENVOLVIMENTO: Log de erro sem expor detalhes sensíveis
-                logging.error(f"Encryption initialization failed: {str(e)}")
-                
-                # Último recurso: chave de emergência apenas para desenvolvimento
-                try:
-                    emergency_key = Fernet.generate_key()
-                    self._fernet = Fernet(emergency_key)
-                    logging.warning("Using emergency temporary key.")
-                    logging.critical("Configure ENCRYPTION_KEY for production!")
-                except Exception as emergency_error:
-                    logging.critical(f"Total encryption failure: {str(emergency_error)}")
-                    self._fernet = None
-                    logging.error("System without encryption - DEVELOPMENT ONLY!")
-                    return
+            # CRÍTICO: Sempre falhar se houver erro na inicialização
+            logging.critical(f"Encryption system initialization failed: {str(e)}")
+            raise ValueError("Encryption system initialization failed. Contact system administrator.") from None
     
     def is_encryption_available(self) -> bool:
         """Verificar se a criptografia está disponível"""
