@@ -1,0 +1,215 @@
+
+Speaker 1 00:00:01
+Eu preciso fazer um sistema que organize todos os exames laboratoriais da minha cachorrinha. Esse sistema vai ser feito exclusivo para ela, de modo que toda a equipe médica possa acessar esse sistema, com essa API, pelo site, de uma forma que ele possa ser configurado para computador e para celular também.
+Speaker 1 00:00:31
+Eu quero fazer com a linguagem de programação Python, porque eu quero que ele fique bem bonito esse site. Eu quero que ele fique realmente impressionante. Nesse site, todas as pessoas que irão visitar ele, irão apenas observar os dados. Eles não vão inserir nenhum dado. O máximo que eles podem fazer é selecionar alguns itens ou algumas formas. Para que se observe os dados de uma forma especial, ok?
+Speaker 1 00:01:06
+Tudo bem. Vamos então para a aba Admin, tá? Porque com o mesmo site, com o mesmo endereço, eu vou querer de uma forma que eu coloque, o endereço barra Admin para eu poder ter acesso a uma parte do administrador. Por favor, coloque uma senha, tá? Porque eu quero que isso aí seja bem seguro, ok? Tudo bem. Na parte do Admin, eu quero que seja possível que eu faça o upload de algum arquivo em PDF, tá?
+Speaker 1 00:01:43
+Esse arquivo em PDF, ele deve ser digitalizado, ele tem que ser absorvido pela API e que esse arquivo fique lá salvo na API, como se fosse uma lista interna da própria plataforma. Só que quando eu jogue esse arquivo, independente do nome que ele tenha, eu quero que seja encontrado nesse arquivo a data do arquivo, o laboratório em que ele foi feito e qual o nome do médico.
+Speaker 1 00:02:21
+que solicitou. Porque todos os exames vão ser da Luna mesmo, da minha cachorrinha Luninha. Luna Princess, sobrenome Luna Princess Mendes Guimarães. Tudo bem? Esse arquivo, logo depois que eu fiz o upload dele, esse arquivo vai ser digitalizado em dados de uma forma que nós vamos colocar em cada arquivo, vai ter a data de um exame.
+Speaker 1 00:02:57
+de laboratório, vai ter aquela data de fato. E vai ser obtido o número do exame e o nome do exame. Por quê? Esse arquivo vai virar alguns dados. E esses dados vão ser registrados no nosso sistema. Quando eu inserir os outros arquivos, eu quero que os dados referentes a esses arquivos também sejam registrados. Por quê? Porque eu quero que na primeira página do site, aquela página que todo mundo vai ter acesso,
+Speaker 1 00:03:34
+que seja possível verificar uma grande tabela de Excel. Um dos modos de avaliar esses exames vão ser uma grande tabela de Excel. E essa tabela de Excel vai ter a coluna dos exames com a data e nas linhas o nome dos exames. Eu queria pedir para que você criasse uma possível integração com alguma inteligência artificial para que todo esse processamento seja feito de uma forma inteligente e para.
+Speaker 1 00:04:08
+que a gente encontre uma forma de programar, uma linguagem de programação para que nós minimizemos os erros, ou seja, esses arquivos eu quero que eles sejam avaliados e que eles sejam processados de uma forma inteligente e eu quero também que seja possível analisar esses exames de uma forma, a forma de análise dos exames tudo vai ser por através da primeira.
+Speaker 1 00:04:51
+página, então inicialmente vai ter ali a página, uma grande tabela de Excel, que a, Que ela abarque a janela quase toda, tá? E eu quero que lá em cima tenha, tipo, como se fosse um botãozinho do lado, né? Tipo assim, na primeira página ali, que todo mundo vai ter acesso. Aí vai estar ali uma página, como se fosse assim, ó. Explorar, ou melhor, histórico completo.
+Speaker 1 00:05:26
+Por exemplo, melhor ainda, histórico completo, tá? Ou então, comparativo completo. Aí, bem ao lado, uma abinha com o botão clicar comparativo. Aí nesse comparativo, eu quero que tenha a possibilidade de a gente poder pegar todos os exames. Todas as classes de exames que já foram realizadas, tá? Que já foram salvos.
+Speaker 1 00:05:57
+Por exemplo, eu sei que vai ter ali... No hemograma completo, eritrócitos, hemoglobina, hematócrito, RDW, leucócitos, monócitos, plaquetas. Então, cada um desses nominhos é para ser uma linha. Logo, é para ser um tipo de exame. Ou seja, cada PDF de exame vai ter um desses nomes e um número.
+Speaker 1 00:06:33
+Mas eu quero que o nosso sistema, de forma inteligente, que ele compreenda o nome do exame que foi encontrado e o número que ele deixa registrado ali. Por quê? Porque eu não quero ter que registrar eu mesmo cada exame que eu lance lá. Por exemplo, vai ter um dia... Vai ter um em algum momento lá, que o PDF vai conter um exame de amônia, e eu não.
+Speaker 1 00:07:06
+quero ter que eu inserir o exame amônia para que aí sim ele faça um registro dos dados. Eu quero que ele mesmo já crie dentro do nosso sistema o campo amônia, para que com esse campo em aberto, à medida que eu vá colocando os outros exames, que ele vá compreendendo, que ele vá compreendendo, todos os dados que forem sendo inseridos.
+Speaker 1 00:07:41
+eu quero que ele também tenha de forma uniforme todas as unidades de exames que forem, Tudo bem? Então, se por exemplo ali, ele colocou um dos exames, eu coloquei um dos exames lá, está lá em nanogramas por decilitro de sangue, em outro exame, também conter o mesmo exame, o mesmo número, só que não em nanogramas por decilitro de sangue, mas em milimol por decilitro de sangue, eu quero que automaticamente o nosso sisteminha lá já converta tudo para a mesma coisa.
+Speaker 1 00:08:32
+Para a mesma unidade, tudo bem? Para a mesma unidade. Um detalhe, eu quero também, seja possível, o nosso sistema, por exemplo, ali na parte, naquela aba de comparativo e tal, que seja possível selecionar o exame que a gente quer comparar, E logo depois que a gente seleciona o exame, eu quero que apareça em algum local as datas.
+Speaker 1 00:09:07
+possíveis para que a gente possa também selecionar as datas possíveis e aí que automaticamente aí abaixo apareça um gráfico. Eu quero que o nosso sistema gere um gráfico e esse gráfico que ele gere, eu quero que ele, que seja possível que tenha um botão, de certa forma assim, exportar gráfico.
+Speaker 1 00:09:38
+Aí ele vai abrir uma janelinha com esse gráfico e que tenha o botão lá copiar gráfico, aí que a gente copie que é da mesma forma fazer um CTRL C, tá? E outro botão do tipo fechar janela, tudo bem? Ok. Comparativo dos dados, de alguma forma, crie uma forma também de eu poder, por exemplo, exportar a tabela, ah, outra coisa também, com relação a essa segunda parte do tipo comparativo ou criar gráfico e tudo mais, eu queria criar uma forma de que fosse possível criar um comparativo também, criar um comparativo também do número dos dados, tá?
+Speaker 1 00:10:35
+Então, por exemplo, eu vou lá e seleciono, quer criar um comparativo só da hemoglobina e do hematócrito, eu vou lá e seleciono, hemoglobina e hematócrito, aí vai aparecer as datas do lado, eu posso colocar lá, eu posso selecionar a data de um dia, dois dias, três dias, pode ser de forma sequencial ou não, eu também, Eu quero poder ter a possibilidade de clicar ali, tipo, todos os dias, né?
+Speaker 1 00:11:10
+Ou todos os exames, tudo bem? Ok, essa é a primeira parte do nosso sistema, tudo bem? Então, foi criado ali, tá? Tendo como referência, ok, ou tendo como referência, por exemplo assim,
+Speaker 1 00:11:46
+tudo que eu falei aqui, para se obter acesso, é naquela parte ali onde todo mundo vai ter acesso, tá? Todo mundo vai ter acesso. Então, eu quero que esse site eu possa fazer um CTRL-C, CTRL-V... Que eu possa, e que seja possível, eu mandar para qualquer pessoa. Para que qualquer pessoa possa, então, analisar esse sistema. Aí, eu vou querer criar bem à direita, assim, um botão que eu possa colocar ali.
+Speaker 1 00:12:35
+Prontuário ou História da Doença Atual. Aí, na História da Doença Atual, eu quero que, automaticamente, seja criado um demonstrativo, tá bom? Um demonstrativo que eu... Eu cliquei na parte demonstrativa da história da doença atual, tá bom?
+Speaker 1 00:13:11
+Eu quero que surja uma linha do tempo. Nessa linha do tempo, eu quero que tenha algumas setinhas, tá? E que na linha do tempo, na hora que eu abro ela, já vai ter selecionado um picotezinho, um piquetizinho, digamos que na vertical. Tipo a linha do tempo na horizontal, imagina ela tipo um rosa, né? Porque eu tô falando de uma menininha, né? Da Luna, minha cachorrinha.
+Speaker 1 00:13:42
+E um tracinho na vertical branco. Bem acima, tá? Eu coloco a data, por exemplo. O que vai conter nessa data aí? Vai conter os... Ali eu quero que, quando apareça lá, eu quero que apareça escrito o que aconteceu naquele dia, entendeu? Por exemplo, eu vou falar então desse primeiro dia, né?
+Speaker 1 00:14:14
+Aí nesse primeiro dia, o que aconteceu? Início das mioclonias. As mioclonias, elas não possuíam fator de melhora ou piora, apresentavam um tremor aqui ou um tremor ali. Estou citando um exemplo, tá? O sono. Aí eu quero que cada... Já já eu vou te falar como que eu vou alimentar essa parte do surgimento, né?
+Speaker 1 00:14:48
+Como que eu vou alimentar essa sessão de dados. E aí, bem ali, quando aparece lá esse risquinho lá branco, digamos que na vertical, aparece a data em cima, aí aparece lá os sintomas daquele dia.
+Speaker 1 00:15:26
+Nessa janelona, eu quero que isso aí fique mais ou menos pela metade superior dessa janela, entendeu? E aí, nessa janela, imagina um quadro, essa janela aí na metade superior. Na parte inferior direita dessa primeira metade superior, vai ter que ter uma setinha, na realidade dois botões. Justa apostos, um com a setinha para a esquerda, que nesse caso...
+Speaker 1 00:15:59
+Vamos lá. Vai estar previamente apagada, porque não vai ter como voltar para a esquerda, nessa linha do tempo. E a direita. Quando a pessoa clica nessa parte da direita, lá na linha do tempo do gráfico, esse risquinho na vertical, ele vai se movimentando para a esquerda e apagando, e vai aparecendo um risquinho da direita e vai ficando com a cor mais realçada. A medida que o risquinho da esquerda vai sumindo, o da direita vai vindo da direita.
+Speaker 1 00:16:35
+e ocupando essa posição do centro, onde estava o primeiro risquinho. Na hora que ele fica lá, aí aparece a data do segundo ponto, a segunda data a ser tomada como nota. E aí, essa segunda data, o que eu quero fazer com essa... Aí vai aparecer tudo aquilo que vai estar relacionado a essa segunda data.
+Speaker 1 00:17:06
+E vice-versa, tá? Aí vai continuar tendo lá os dois botõezinhos justapostos e tal. Ok. E aí, na parte inferior dessa aba aí da história da doença atual, na parte inferior, porque é até nessa metade superior em cima,
+Speaker 1 00:17:37
+que vai ter lá um micro resumo dos principais tópicos que aconteceram naquele dia, aquilo ali resumido, na metade inferior, eu vou querer que nessa metade inferior seja dividida em duas partes. Essas duas partes, a parte da esquerda, eu quero que contenha, Um texto, tá? Relativamente organizado, esse texto, que aí eu quero que contenha um texto ali, um parágrafo, tipo, o que aconteceu naquele dia, tá?
+Speaker 1 00:18:11
+Mas de uma forma cursiva, tá? De uma forma bonita, como se fosse um prontuário médico, tá? E na direita, eu quero que você faça uma pré-seleção dos exames relacionados àquele dia, tá bom? Bom, aquele dia que está selecionado ali naquela linha do tempo superior. Essa é a parte da história do doença atual, essa aí vai ser das principais partes, então capricha nessa parte aí. Beleza, aí voltando para a aba admin, essa aba admin, ela também tem que conter, tá?
+Speaker 1 00:18:50
+Uma parte relacionada ali à construção de registro... do prontuário clínico, tá? Construção de registro do prontuário clínico. Por quê? Nessa construção de registro do prontuário clínico, eu quero que seja possível eu fazer um upload tanto de um arquivo de texto, quanto de um arquivo em PDF, e nesse arquivo de texto, ou arquivo em PDF, tá?
+Speaker 1 00:19:35
+Eu quero que tenha a capacidade da nossa integração com o IA, reconhecer esse texto, tá? No buffer desse processamento, eu quero que ele compreenda o texto, seja capaz de. Selecionar tópicos do que aconteceu dentro daquele texto que foi ou transcrito do áudio.
+Speaker 1 00:20:06
+ou que foi reprocessado por através dos textos que eu mandei. Eu quero que ele elenque pontos de importância. Entenda ou compreenda qual data que deve ser registrada para aquele processamento que acabou de ser realizado em cima do material que foi enviado.
+Speaker 1 00:20:38
+E à medida que ele vai processando isso aí, eu quero que ali nessa mesma aba, admin, bem no local de construção desses dados e tudo mais, eu quero que... Antes de ele já registrar no nosso sisteminha o que ele vai tomar para si de dados relevantes,
+Speaker 1 00:21:10
+eu quero que você crie um texto numa caixa de texto e mostre esse texto que foi criado nessa caixa de texto da seguinte forma, numa caixa de texto com a possibilidade que eu edite a data, a data que está ali, o texto que foi interpretado a partir disso e logo.
+Speaker 1 00:21:50
+abaixo desse texto, quais são os tópicos que vão em destaque, que foram selecionados, A partir desse texto e que lá naquela aba dos observadores, das pessoas que vão poder avaliar, quais são esses nomes que foram obtidos a partir desse texto cursivo que vão naquela parte lá mais bonita, aquela parte que vai mostrar bem bonitinha uma linha do tempo.
+Speaker 1 00:22:23
+E aí, caso haja necessidade de eu editar ou reescrever esse texto ou montar novamente esse texto, eu quero que seja possível da seguinte forma, que eu mova o mouse, escreva o mouse, digamos que esse texto então ele estará com os caracteres em azul e aí quando eu vou reeditar esse texto, eu quero que tudo que eu escrever ali fique mais ou menos numa cor vermelha.
+Speaker 1 00:23:00
+Para que, digamos que eu parei de digitar, parei de escrever, parei de acrescentar pontos ali. Aí eu quero que tenha um botãozinho ali embaixo, de uma forma assim, reprocessar o texto. Aí a nossa IA vai pegar aquilo que eu acabei de escrever, fazer uma simples correção ortográfica, reorganizar para que ele fique de uma forma adequada.
+Speaker 1 00:23:31
+Tudo bem? Bom dia. Quanto que é mesmo? Vou te dar uma nota de 20, tá. 
+Speaker 2 00:24:08
+Muito obrigado.
+Speaker 1 00:24:27
+E aí, ao reprocessar esse texto, aí o texto vai ficar da mesma cor, tá? E aí que tem o botãozinho lá, que a gente vai e coloca assim, ó, salvar. Aí quando eu colocar, quando clicar o salvar, aí sim esse texto vai ficar no prontuário. E ao ficar no prontuário, aí eu quero que seja possível ser, aí sim, né? Absorvido pelo nosso sisteminha, tá?
+Speaker 1 00:25:00
+Só que eu também quero que nessa mesma aba dos editores, do pessoal ali que está, digamos que, construindo esse prontuário ali, que seja possível, bem à direita, assim, digamos que eu clique ali e que seja possível, digamos que, ter acesso ao texto, tá bom? Para que eu clique, aí abra o texto, aí eu possa ver se eu deleto ou não.
+Speaker 1 00:26:32
+Por que eu quero colocar essa parte? Porque é possível que em algum momento eu queira editar essa parte. Então, cria uma ideia aí para que eu possa pensar nisso aí. É, e também vai ser importante criar também uma aba com relação ao histórico de medicamentos, tá bom?
+Speaker 1 00:27:13
+Essa parte do histórico de medicamentos é interessante por quê? Porque eu quero que apareça um histórico em uma outra aba, em outra parte, tá bom? Digamos assim, um gráfico, a possibilidade de que se colocar um gráfico, tá? Que a gente crie esse gráfico também de acordo com o quê que nós vamos registrar de medicamento. Que eu posso colocar o seguinte, tá?
+Speaker 1 00:27:46
+Também eu quero criar de uma forma que eu possa mandar um áudio e que a própria IA também entenda esse áudio, e registre qual ativo químico que foi colocado. Eu quero que também seja possível que essa IA procure no banco de dados da própria IA ou da internet, simplesmente o nome, o nome, só para não ficar um nome errado nos nossos registros. E aí eu quero que através desse áudio a IA entenda e gere um arquivinho abaixo, num.
+Speaker 1 00:28:23
+bloco de notas, como se fosse um bloco de notas, como se fosse uma janelinha num bloco de notas. Isso aí eu estou citando naquela parte do admin, na parte dos editores, então eu quero, ser possível que eu envie um áudio e de acordo com esse áudio ela vá construindo esse bloco de notas. Mas nesse caso eu quero que cada vez que eu mande algum áudio seja feita a edição nesse, grande arquivo ali no bloco de notas. Por quê? De uma forma que eu fale, ó, ela usou o voriconazol que iniciou tal dia com tantos miligramas.
+Speaker 1 00:28:57
+e parou de ser... É... Então, ele já se registra lá, nesse bloquinho de notas, assim ó, medicamento, voriconazol, aí eu quero que ele crie, nas linhas vai estar ali, o nome do ativo químico, aí na primeira coluna, vamos imaginar que essa primeira coluna, na verdade serão duas colunas, que.
+Speaker 1 00:29:27
+vai colocar, tipo, na esquerda, data de início, tá, e nessa própria coluna, eu quero que fique, tipo assim, um certo destaque de cor, sabe, por exemplo, digamos que a tabela toda vai ser meio que branca, com linhas pretas, nessa primeira coluna, tipo um cinzinha clarinho, tá, por quê? Porque vai que em algum momento, a gente pegue esse medicamento e reinicie ele, tá bom?
+Speaker 1 00:29:59
+Só que aí... E nessa coluna vai estar assim ó, primeira linha, medicamento, aí na primeira coluna vai estar lá, data de início, só que referente a esse mesmo medicamento, na data de início, que vai estar naquela coluna, primeira coluna vai ser o nome do medicamento, segunda coluna vai ser uma metade, digamos que esse primeiro conjunto de colunas, então vai ser a esquerda.
+Speaker 1 00:30:30
+e data de início, nesse data de início eu vou colocar lá, tipo lá, por exemplo, 7 de julho de 2025, aí eu quero que registre em 3 dígitos, por exemplo, 7 do 7, 25, 7 barra 7 barra 25 e logo abaixo, a miligramagem do medicamento e a via. E aí, na terceira coluna, que na verdade vai ser a outra metade desse primeiro conjunto.
+Speaker 1 00:31:13
+de colunas referentes à data de início e data de término referente a um medicamento só, aí eu quero que seja possível também que apareça nesse arquivinho lá, digamos que a data que foi encerrado aquele medicamento e a miligramagem. Aí eu não acho necessário ter que registrar novamente a via de administração, não. Eu acho que também seria interessante ser possível colocar como dado, numa terceira.
+Speaker 1 00:31:59
+coluna... Algo escrito assim, por exemplo, considerações, só que essas considerações que vão estar aí numa quarta coluna, também vai estar referente a esse primeiro conjunto de administração, e nessa quarta coluna vai ser um cinzinha um pouco diferente do primeiro cinza,
+Speaker 1 00:32:33
+desse primeiro conjunto de colunas, referente a coluna 2 e 3, referente a data de início, data de término do medicamento, e a dose e a via de administração, ok? Eu quero que essas considerações sejam tipo assim, interrompido, pois ocorreu o dia, Ou como vai acontecer quando a gente for alimentar esses dados, por exemplo, nesse caso, houve uma história real, que a minha cadelinha, ao usar canabidiol, eu precisei ter que parar o canabidiol, porque ela estava começando a ter tontura, entendeu?
+Speaker 1 00:33:27
+E assim, vai ter algum momento que talvez eu coloque, por exemplo, assim, o canabidiol, o canabidiol ficou muito sob demanda, só que digamos que eu ou minha esposa vai mandar o áudio para contar a história de como o canabidiol foi feito, então, por exemplo, ele foi feito em 5, 10 gotas sob demanda, teve dia que a gente fez 20 gotas, teve dia que a gente fez 30 gotas, e o próprio canabidiol,
+Speaker 1 00:34:00
+O canabidiol, por exemplo, digamos que quando a gente for falar, a gente vai lá e coloca assim, ó. Ah, mas o canabidiol foi feito assim, assim, assado. Aí, quando eu jogue o áudio, quando eu vou jogar o áudio, vai chegar um momento que talvez no texto ali, tá? Quando a nossa IA for interpretar o nosso áudio para gerar o texto, para criar um texto organizado, que na verdade não é bem o texto, tá? É aquele bloco de notas que vai vir logo abaixo, tá?
+Speaker 1 00:34:32
+Isso aí tudo na parte da edição, do registro dos dados, tá bom? Que talvez ele tenha dúvida, tá? Aí, ao ter dúvida, ele vai perguntar assim para mim, ó. O medicamento canabidiol foi administrado sob demanda? Pergunta. Aí, me deixa uma caixinha para eu responder. Que talvez eu coloque assim, não. Não foi sob demanda, foi de 8 em 8, porque talvez crie essa lacuna da IA não compreender a forma como a pessoa vai mandar o áudio.
+Speaker 1 00:35:13
+Então vamos criar essa forma da pessoa, da IA por exemplo, fazer essas perguntas relacionadas a cada um dos medicamentos, a forma de cada um dos medicamentos, procurando essas lacunas relacionadas a cada um dos medicamentos.
+Speaker 1 00:35:45
+E por que relacionada a cada linha do medicamento eu pensei em ter na primeira coluna, todas as linhas relacionadas a cada linha um medicamento e essa linha de um medicamento, na verdade, A verdade vai vai conter digamos que seguindo a direita tá aí eu vou entrar na segunda coluna que vai fazer parte do primeiro grupo de colunas relacionada à parte da data da primeira administração porque porque a primeira grupo de colunas cada grupo de colunas vai ser referente à data de início data de.
+Speaker 1 00:36:18
+término e considerações é possível que em algum outro momento a gente volte com medicamento aí vai ser criado uma outra coluna outro grupo de colunas tá que a gente vai fazer com outra tonalidade de cor tá é isso tudo na naquele eu falo cor assim mas é cor referente àquela tabela que é semelhante a uma tabela de excel mas num bloco de notas porque eu quero aquele texto de uma forma bem simples parecendo um bloco de notas mesmo sabe aquele texto bem cheba né é.
+Speaker 1 00:36:53
+mas aí vai criar outra forma de coluna coluna tá nessa outro conjunto de, Então ali ó, data de início novamente, data de término novamente e depois considerações também, ok? Aí digamos que a gente foi lá e alimentou esse sistema relacionado à parte de medicamentos. Falei então do que foi colocado de medicamento, a gente vai falar datas, nós vamos falar características e tal. E você vai registrando todos os dados ali em uma grande tabela só, ok? Uma grande tabela só.
+Speaker 1 00:37:25
+Nessa uma grande tabela só, eu quero que a gente salve, tá? Ao salvar, eu quero que automaticamente ele faça uma análise do que está ali e caso exista alguma dúvida, ele pergunte para mim. Ó, esse medicamento, a dose foi essa mesmo? Foi assim mesmo? Não foi? Tudo bem? Ok, aí registrou. Aí vamos agora imaginar que nessa parte de coleta de dados relacionado à parte de medicamentos ali, digamos que...
+Speaker 1 00:38:00
+E eu então, vai então para a parte para mostrar, para poder mostrar para todo mundo os medicamentos que foram administrados, tudo bem? E aí esses medicamentos que foram registrados vão aparecer da seguinte forma, uma grande.
+Speaker 1 00:38:37
+tabela, como se fosse uma linha do tempo, só que essa linha do tempo é uma tabela grande grande, mas que apareça várias linhas na linha do tempo, ok? Só que de uma forma que eu possa mover o gráfico para a esquerda e para a direita, com alguns demonstrativos das datas. Digamos que toda a doença dela começou lá em junho, aí lá em junho falassem olha começamos o voriconazol 50 miligramas duas vezes ao dia, aí que aparece ali.
+Speaker 1 00:39:11
+digamos que voriconazol, uma tabelinha, uma linha que é tipo um retângulo em forma de linha, com ali um, por exemplo, vamos imaginar um voriconazol amarelinho, aí digamos que uma linhazinha na vertical bem pequenininha pretinha colocando a data de início, aí passa, digamos que a linha, aí lá na frente essa linha termina e com a linhazinha vertical do mesmo.
+Speaker 1 00:39:42
+tamanho, com a data de término, entendeu? E aí dentro dessa caixa aí, dessa linha, a dose, a via de administração, e aí dentro dessa caixa aí, dessa linha, a dose, a via de administração, E aí, para ficar organizado, nessa linha toda, bem na parte do término, eu quero colocar escrito pequenininho, por exemplo, P.S., que isso aí vai ser relacionado à parte das considerações.
+Speaker 1 00:40:14
+Diz assim, ó, suspenso, pois chegou no término do medicamento. Ou então, suspenso porque foi trocado por flucorazol. Entendeu? Mais ou menos assim, tá?
+Speaker 1 00:40:44
+E aí, eu quero que seja possível, por exemplo, lá na parte do admin, tá? Seja possível colocar fotos, tá bom? Tipo assim, uma foto da aluna, tá? Lá em cima. E bem à direita, assim, tá? Foto dos tutores. Doutores, que aí no caso é eu, né, que é o Paulo Guimarães, que aí vai ter um, aí cria uma abazinha lá pra eu poder colocar essas fotos e nessa foto que eu possa meio que, digamos que apareça uma janelinha com a possibilidade de eu colocar a foto dela e nessa foto dela meio que aparecer aquele esquema do tipo de um círculo um pouco mais claro no centro, que é onde vai realmente aparecer a foto e um pouco mais escuro em volta, que é onde vai ficar mais apagadinho.
+Speaker 1 00:41:31
+Que é onde não apareceria a foto. Nos doutores também, tá? Mais ou menos por aí. Aí no caso dela, né, eu quero criar a possibilidade de tipo assim, que eu coloque a foto e eu coloco o nome completo dela, por exemplo, Luna Princess Mendes Guimarães e na parte dos doutores, né, também, né, só que aí só ela ali à esquerda.
+Speaker 1 00:42:01
+E menorzinho lá do outro lado, a foto minha da Júlia, tá? A foto, um slotzinho para eu colocar a minha foto e o meu nome. E do outro lado, bem do lado do meu lado, foto da Júlia e o nome da Júlia, ok?
+Speaker 1 00:42:42
+Aí bem no centro assim, do nosso sistema, onde todo mundo vai poder ver, onde todo mundo vai poder verificar, digamos ali, os dados. Lá em cima, né, eu quero que coloque tipo assim, que é o prontuário, Luna, né, tal. Aí, de uma forma bonita, a gente coloca assim, ó.
+Speaker 1 00:43:12
+Deus opera milagres, tá bom? E um pouco menorzinho assim, ó, pequenininho. Em hebraico, a gente vai colocar Yeová Rafa. Não, acho que não. Não, cancela essa parte do Yeová Rafa, tá bom? Lá na parte do admin, tá? Essa parte lá que vai ter a parte lá de registros gráficos, né?
+Speaker 1 00:43:44
+Tipo, digamos que... Porque na admin, nessa parte do admin, só eu e a minha esposa teremos acesso, tá? Então, eu queria uma forma também de eu poder... Que eu tenha, tá? Como entrar no sistema. Por saber a senha, né, que vai ser admin, arroba admin.com e a senha admin123, tá? Uma vez que eu entro lá nesse sistema, aí eu quero que lá na parte do admin também,
+Speaker 1 00:44:16
+que eu possa conseguir criar o meu usuário e o usuário dela, tá? E aí nessa parte de criar o usuário, eu vou colocar o e-mail dela e a senha dela. E o meu e-mail e o e-mail dela. E o meu e-mail e a minha senha, tá? Aí na parte gráfica lá, eu também queria poder meio que criar tipo um fundo, tipo uma temática gráfica pra ficar bem bonito, sabe?
+Speaker 1 00:44:50
+Porque eu quero uma temática meio que assim, que seja possível, uma temática meio que pra prontuar o tipo de pediatria, tá? Quero uma coisa bonitona. É isso aí. E eu quero criar também, ali na parte do construção de histórico da doença, porque eu citei ali a possibilidade de enviarmos arquivos, certo? Eu queria que fosse.
+Speaker 1 00:45:21
+feita uma possibilidade que, na janela onde se envia o arquivo, que seja no computador, de uma forma assim, que eu arraste o arquivo ou que eu coloque, digamos que inserir, um botãozinho que coloca inserir. Aí eu pesquise, digamos que no HD, digamos que do computador ou no caso do celular, que eu clique aquilo ali e faça um upload de arquivo. Aí que seja possível.
+Speaker 1 00:45:52
+ele abrir, aquela janela de, possibilidade que eu possa pegar. algum arquivo de dentro do meu celular, por exemplo, que venha algo da pasta arquivos ou do iCloud, tipo assim, que ele tenha acesso a toda a base de dados do meu celular, inclusive do álbum de fotos, daquela parte ali de fotos, seja Android ou seja iPhone e tal. E aí, digamos que eu selecione um arquivo de vídeo, aí eu seleciono o arquivo de vídeo,
+Speaker 1 00:46:30
+aí o que eu quero fazer, a hora que eu pegar o arquivo de vídeo, um ou infinitos, aí eu aperto lá, enviar, né, ou abrir, para poder sair daquela janela que abriu, para poder fazer o upload, jogar para aquela janela que vai ter a lista dos arquivos, eu quero que seja todos os arquivos, a hora que imediatamente, quando cair ali dentro, apareça só, tipo sei lá, um iconezinho e o nome do arquivo, só que automaticamente, a hora que ele entra.
+Speaker 1 00:47:00
+Ele já começa a dar uma processada do tipo para poder meio que absorver o arquivo, seja no caso do celular de uma forma que talvez esse arquivo esteja na nuvem, talvez esse arquivo não esteja 100% no meu celular, o que eu quero que faça, que apareça uma tipo, uma bolinha, azulzinha, e essa bolinha mostre a capacidade do arquivo de se carregar do.
+Speaker 1 00:47:40
+celular, a hora que esse arquivo carregar do celular, aí se conclui essa bolinha azul, mas no sentido do tipo, a bolinha vai sendo preenchida na forma de pizza, do jeito que quando é 0% de carregamento para memória. A bolinha do celular. celular né que sai da nuvem para a memória do celular zero por cento e quando for 100% aí que vá se fazendo então um gráficozinho pequenininho dentro daquele digamos que é não só o ícone que.
+Speaker 1 00:48:15
+aí quando esse arquivo quando ele for é inserido nessa lista tá ele vai ter lá um íconezinho do dentro do arquivo tipo dando a entender que aquele arquivo ali é digamos que seja um vídeo né o as primeiras imagensinhas ali do vídeo e o nome aí aí quando ele entrou ali aí já vai começar a rodar a, rodinha né do arquivo né para meio que fazer o download da nuvem para o celular aí quando vai.
+Speaker 1 00:48:53
+complementar ali a rodinha vai tipo, é e preencher na rodinha é, Azul, a hora que ela terminar, esse azul eu quero que fique tipo um cinza, e é que apareça tipo um sinalzinho bem pequeno de sinalização, mas tudo isso aí pequenininho. E aí, quando completar essa parte desse íconezinho aqui, essa partezinha da sinalização vai estar bem pequenininha, referente à imagem que já é pequena também,
+Speaker 1 00:49:26
+que vai ser referente a um dos vídeos da grande lista que eu joguei. E aí, essa é a parte de azulzinho e o tiquezinho lá, a hora que ela completar, do vídeo que sai da nuvem e cai para o celular, aí do celular, quando completar o upload para o nosso sistema, aí vai ser bem à direita, com essa rodinha que já fechou e já apareceu o tiquezinho,
+Speaker 1 00:49:56
+aí começa a fazer o upload. Uploading. Do arquivo, tá? Pro sistema. De um jeito que aí, mesma forma. A pizzazinha vai fechando. A hora que a pizzazinha for fechando, tá? A hora que a pizzazinha for fechando, aí essa pizza que for fechando, a gente vai aparecer depois um tiquezinho também, tá? Esse tiquezinho que for aparecer,
+Speaker 1 00:50:27
+aí eu quero que de alguma forma seja feita uma... Digamos assim, um breve processamentozinho, assim, digamos que, daquele arquivo, tá? Só que eu queria que os arquivos fossem sendo carregados, digamos que, ao mesmo tempo. À medida do possível, tá? Não precisa, digamos que, primeiro carregar um, depois o outro, depois o outro, depois o outro. Só que, né? Digamos que aí, quando esses arquivos, teoricamente,
+Speaker 1 00:50:58
+forem carregados para o sistema, Quando esses arquivos forem carregados para aquela janela, aí eu quero que apareça um botãozinho do tipo assim, ó. Então assim, ó, gerar histórico ou gerar prontuário, tá? Um botãozinho. Aí quando eu clico, aí vai aparecer um avisozinho assim, ó,
+Speaker 1 00:51:29
+não fecha essa janela, tá? Porque eu quero o processamento do meu computador dedicado para isso, tá? Não fecha essa janela. Aí o que vai acontecer? Seja o vídeo, seja o áudio, seja o texto e tal, aí eu quero que a nossa IA, no nosso sistema, vá construindo o registro desse histórico da doença atual. Que é o quê? Ele vai...
+Speaker 1 00:52:00
+Aí internamente. Aí eu quero que ele passe. E aí vai fazendo assim. Eu quero que essa janela relacionada à parte de onde estava a seleção de dúvidas. Ela dê uma leve subidinha. Leve subidinha. E aí apareça alguma rodinha daquelas do tipo processando. Bem bonitinha e tal. E aí ele vai construindo o relatório médico da seguinte forma.
+Speaker 1 00:52:35
+Isso tudo na aula, na aba admin. Aparece tipo assim. Primeiro, uma data. Nessa data, aí eu quero que apareça. Apareceu a data. Como é que é a esquerda? Lindo, é tipo naquele texto de baixo. Como se fosse um bloco de notas. Aí eu quero que coloque assim. Uma... Tipo uma linhazinha um pouco mais escura e logo abaixo que vai sendo construído em tempo real o texto oriundo daquele arquivo que eu mandei, tá?
+Speaker 1 00:53:12
+Aí, à medida que esse texto vai sendo feito, tá? À medida que esse texto vai sendo feito, vai sendo escrito ali, eu quero que... Porque aí a gente colocou a data meio que à esquerda, uma linha à direita e abaixo dessa linha o texto sendo escrito, né? Com o parágrafo, tudo bonitinho. Aí só embaixo desse texto é que vai aparecer tipo aquelas palavras-chave. Só que bem à esquerda, digamos que alinhado meio que embaixo ali da data, tá?
+Speaker 1 00:53:49
+Que fique ali o arquivo ou os arquivos que foram usados para construir aquele registro naquela data, tá? Naquela. Naquela data ali. Aí, digamos que ele vai para outro arquivo. Aí, no outro arquivo, ele vai analisar. E digamos que seja outra data. Aí, naquela outra data, ele vai lá e mantém. Tipo assim, como se fosse uma grande linha de texto infinita, que aí sim, nessa parte do admin, vai sendo alimentada no eixo, digamos que, vertical.
+Speaker 1 00:54:23
+Por exemplo, as datas mais anteriores vão sendo, ficando mais na parte de cima, né? E as datas mais posteriores, elas vão sendo inseridas nessa grande lista e sendo inseridas, digamos que, abaixo, né? Os textos, a verdade, aquela data tem que ser mais na parte mais inferior. Mas aí, se o próximo arquivo ser analisado, que já está naquela lista, ou no segundo momento, quando eu inserir o outro arquivo,
+Speaker 1 00:54:55
+que eu quero que essa linha de tempo seja possível ser inserida em tempo real. em tempo real tá seja possível ser inserido em tempo real e aí é eu queria que é então quando ele for ler esse outro arquivo então que ele que ambos temos já compreendo a data e já escreva ali.
+Speaker 1 00:55:26
+em tempo real de você a data né aí a data ali você vai dar aí passou a linha né digamos que em negrito nessa linha negrito então ele começa a construir aquele peso e da mesma forma a esquerda que ele deixa então um ícone do arquivo tá de uma forma harmônica não precisa ser muito grande nem muito pequeno é bem nesse arquivo ali é que fica ali digamos que salvo de uma forma que caso eu queira baixar aquele arquivo que eu possa baixar aquele arquivo que eu quero que seja uma forma.
+Speaker 1 00:56:00
+de guardar os dados, tá bom, desse sistema nosso, ok, tudo bem, aí digamos que ele processou, aí eu quero então, terminou tudo, né, aí eu queria que aparecesse alguma imagem, né, algum botãozinho, tipo assim, processamento concluído, tá, aí que apareça aquela parte.
+Speaker 1 00:56:30
+de salvar, aí quando salvar, aí sim vai ser registrado no nosso sistema, mas também eu quero que seja possível, né, quando entra na parte admin ali, né, seja eu ou a minha esposa, que seja possível eu entrar ali na parte do prontuário, cria uma forma da gente poder fazer isso aí, tá, por exemplo, uma boa ideia seria do tipo, quando eu, eu, eu. Eu queria que entrasse, então, naquela possibilidade de ser, assim,
+Speaker 1 00:57:05
+que fosse possível eu já ver o prontuário naquela forma de um grande texto, como se fosse na forma de bloco de notas, tá? Naquela mesma estrutura que a gente conversou, que é esse texto que vai ser, digamos que, nessa forma de bloco de notas, que vai ser na parte exclusiva da parte de construção da história da doença atual, que vai ser estes dados que serão utilizados para construir aquela linha do tempo que eu falei lá de sinais e sintomas, tá?
+Speaker 1 00:57:36
+Então, essa parte do texto ali eu queria que fosse possível, né? À medida que a gente fosse caminhando com relação à grande lista no eixo vertical, eu queria que fosse possível que eu ou a minha esposa clicássemos numa daquelas evoluções. E aí, ao clicar naquelas evoluções, que fosse possível a gente poder editar alguma coisa no texto, tá?
+Speaker 1 00:58:07
+E da mesma forma que eu falei antes, que fosse possível editar alguma coisa no texto e que essas edições ficassem em letras vermelhinhas, assim, por exemplo, e aí aparecesse aquele botão, assim, ó, processar, ou processamento, ou então, assim, ó, isso, processar e tal, isso. Aí quando clica, ele chega, faz uma análise daquelas modificações ali.
+Speaker 1 00:58:43
+e aí que apareça um botãozinho do tipo assim, tipo assim, a modificação está correta, né? Ou está adequada, por exemplo. Aí a gente coloca assim, sim. Aí depois que aparecer o sim, aí coloca salvar. Aí salvamos. E aí, nessa parte ali da construção do texto do prontuário, né?
+Speaker 1 00:59:15
+Da história da doença atual e tal. E aqui vai ter, em cada uma das datas, né? A data, uma linha horizontal em negrito. Dali pra baixo, a construção do texto. A esquerda, mais ou menos alinhada com a parte ali da data, né? De uma forma que tem ali os arquivos que foram utilizados pra construir aquilo ali, tá? Aquela parte lá. E a direita, bem a direita, né?
+Speaker 1 00:59:49
+Tipo o log, entendeu? Aí que a gente coloca assim, ó. Bem pequenininho, assim, ó. Log, dois pontos. Modificado por... A gente coloca assim, dois pontos né, Julia Larmer Mendes tal dia, aí logo abaixo do nome dela, caso eu modifique, aí eu posso colocar criado ou modificado e tudo mais, e aí aquela lista ali, eu queria tornar possível de um jeito que aquilo ali vai sendo modificado, nesse local eu queria criar a possibilidade de se clicar num botão,
+Speaker 1 01:00:26
+colocar assim, imprimir de uma forma que fosse gerado em PDF, todo esse arquivo em texto, em prontuário ali que foi gerado tá, e só para lembrar, essa parte do arquivo né, da edição ou da elaboração do texto, da construção da história da doença atual, de uma certa forma, só para poder tornar bem evidente, vai ter um cabeçalho nesse estágio,
+Speaker 1 01:00:59
+desse sistema. Que quando a pessoa entra, vai ter lá, o que eu falei, a fotinha da aluna, a minha fotinha e tal, com a temática que pode ser editada depois na aba ali, Admin, e aí essa edição eu queria que fosse possível, que aí na parte Admin ali, é que esse texto da história da doença atual que fosse construído,
+Speaker 1 01:01:32
+por exemplo, aí entramos lá no site, aí nessa entrada do site lá, aparece alguma coisa, quando a gente coloca o Admin, eu queria que o sistema todo ficasse quase tudo igual, só no cabeçalho eu queria que mudasse só uma tonalidadezinha da cor, e aí aparecesse o nome, Administradores, logo depois, obviamente já aparecia a janelinha do login, entramos então, aí cai essa janelinha do, Login, né, ou seja, toda janela do sistema vai ter uma leve mudancinha de cor, né, por exemplo, se está amarelo, vamos para azul claro, se está rosa, vamos para roxinho, alguma coisa assim, tá, beleza, aí ok, e aí quando a gente vai para a parte admin, aí vai aparecer ali, então, o texto, tá, o texto do prontuário, né, e aí, como é que vai aparecer, então, né, na parte administrador, vai ter a parte lá, tipo, bem em cima o cabeçalho, tal,
+Speaker 1 01:02:32
+com essa mudança de cor, aí aparece aquela janela do prontuário, do texto do prontuário, e naquela metade inferior, que vai ser quase que três quartos ali daquela parte, tá, eu quero que tenha todo aquele texto, mas de um jeito que eu possa rolar para cima, rolar para baixo, aparecer todo o texto, digamos que numa possibilidade de construção infinita de um eixo vertical. Quase 10? Obrigado.
+Speaker 1 01:03:05
+Não, não precisa não. Tchau, tchau.

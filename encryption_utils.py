@@ -1,10 +1,14 @@
 import os
 import base64
+import re
+import secrets
 from typing import Optional, Any
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import streamlit as st
+import logging
+import sys
 
 
 class EncryptionManager:
@@ -15,6 +19,40 @@ class EncryptionManager:
         self._fernet = None
         self._init_encryption_key()
     
+    def _validate_encryption_key_strength(self, key: str, is_production: bool) -> tuple[bool, str]:
+        """Validar força e entropia da ENCRYPTION_KEY"""
+        if not key or not key.strip():
+            return False, "ENCRYPTION_KEY não pode estar vazia"
+        
+        key = key.strip()
+        
+        # CRITICAL: Comprimento mínimo de 32 caracteres
+        if len(key) < 32:
+            return False, f"ENCRYPTION_KEY deve ter pelo menos 32 caracteres (atual: {len(key)})"
+        
+        # PRODUCTION: Verificações adicionais de entropia e qualidade
+        if is_production:
+            # Verificar se a chave não é muito simples ou repetitiva
+            if len(set(key)) < 10:  # Pelo menos 10 caracteres únicos
+                return False, "ENCRYPTION_KEY deve ter maior diversidade de caracteres"
+            
+            # Verificar se não é apenas base64 fraco (muitos '=' ou padrão simples)
+            if key.count('=') > len(key) // 4:  # Muitos padding chars
+                return False, "ENCRYPTION_KEY parece ter entropia insuficiente"
+            
+            # Verificar se não contém apenas caracteres alfabéticos simples
+            if re.match(r'^[a-zA-Z]+$', key):
+                return False, "ENCRYPTION_KEY deve incluir caracteres especiais e números"
+            
+            # Verificar se não é uma sequência óbvia
+            common_patterns = ['123456', 'abcdef', 'qwerty', '000000', '111111']
+            key_lower = key.lower()
+            for pattern in common_patterns:
+                if pattern in key_lower:
+                    return False, "ENCRYPTION_KEY não deve conter padrões comuns"
+        
+        return True, "Chave válida"
+    
     def _init_encryption_key(self):
         """Inicializar chave de criptografia com validação rigorosa para produção"""
         try:
@@ -22,20 +60,38 @@ class EncryptionManager:
             app_env = os.getenv('APP_ENV', '').lower()
             is_production = app_env == 'production'
             
+            # Configurar logging seguro
+            if is_production:
+                logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
+            else:
+                logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
+            
             # Verificar se existe chave no ambiente
             env_key = os.getenv('ENCRYPTION_KEY')
             
             if not env_key or not env_key.strip():
                 if is_production:
                     # PRODUÇÃO: Falha crítica - não há fallbacks
-                    raise ValueError("FALHA CRÍTICA: ENCRYPTION_KEY obrigatória em produção. Configure a chave de criptografia.")
+                    error_msg = "ENCRYPTION_KEY environment variable is required in production"
+                    logging.critical("Missing ENCRYPTION_KEY in production environment")
+                    raise ValueError(error_msg)
                 else:
                     # DESENVOLVIMENTO: Gerar chave temporária (sem logs)
                     temp_key = Fernet.generate_key()
                     self._fernet = Fernet(temp_key)
-                    # Não imprimir chaves - apenas avisar
-                    import sys
-                    sys.stderr.write("WARNING: Usando chave temporária em desenvolvimento. Configure ENCRYPTION_KEY para produção.\n")
+                    logging.warning("Using temporary key in development. Configure ENCRYPTION_KEY for production.")
+                    return
+            
+            # VALIDAÇÃO RIGOROSA: Verificar força da chave
+            is_valid, validation_msg = self._validate_encryption_key_strength(env_key, is_production)
+            if not is_valid:
+                if is_production:
+                    logging.critical(f"Invalid ENCRYPTION_KEY in production: {validation_msg}")
+                    raise ValueError(f"Invalid ENCRYPTION_KEY: {validation_msg}")
+                else:
+                    logging.warning(f"{validation_msg}. Generating temporary key.")
+                    temp_key = Fernet.generate_key()
+                    self._fernet = Fernet(temp_key)
                     return
             
             # Múltiplas tentativas de interpretação da chave
@@ -92,8 +148,7 @@ class EncryptionManager:
                         self._fernet = test_fernet
                         # Log apenas em desenvolvimento
                         if not is_production:
-                            import sys
-                            sys.stderr.write(f"Criptografia inicializada usando método: {attempt_name}\n")
+                            logging.info(f"Criptografia inicializada usando método: {attempt_name}")
                         return
                 except:
                     continue
@@ -101,37 +156,38 @@ class EncryptionManager:
             # Se nenhuma tentativa funcionou
             if is_production:
                 # PRODUÇÃO: Falha crítica - chave inválida
-                raise ValueError("FALHA CRÍTICA: ENCRYPTION_KEY inválida em produção. Verifique a configuração da chave.")
+                logging.critical("Invalid ENCRYPTION_KEY format in production environment")
+                raise ValueError("Invalid ENCRYPTION_KEY format. Please verify the key configuration.")
             else:
                 # DESENVOLVIMENTO: Gerar nova chave (sem logs)
                 new_key = Fernet.generate_key()
                 self._fernet = Fernet(new_key)
-                import sys
-                sys.stderr.write("WARNING: Chave inválida. Usando chave temporária em desenvolvimento.\n")
-                sys.stderr.write("Configure ENCRYPTION_KEY válida para produção.\n")
+                logging.warning("Invalid key format. Using temporary key in development.")
+                logging.warning("Configure valid ENCRYPTION_KEY for production.")
                              
         except Exception as e:
             app_env = os.getenv('APP_ENV', '').lower()
             is_production = app_env == 'production'
             
             if is_production:
-                # PRODUÇÃO: Falha crítica - não há chaves de emergência
-                raise ValueError(f"FALHA CRÍTICA DE CRIPTOGRAFIA EM PRODUÇÃO: {str(e)}") from e
+                # PRODUÇÃO: Falha crítica - log interno sem exposição
+                logging.critical(f"Encryption system initialization failed: {str(e)}")
+                # Mensagem genérica ao usuário - não expor detalhes internos
+                raise ValueError("Encryption system initialization failed. Contact system administrator.") from None
             else:
                 # DESENVOLVIMENTO: Log de erro sem expor detalhes sensíveis
-                import sys
-                sys.stderr.write(f"ERRO: Falha na inicialização da criptografia: {str(e)}\n")
+                logging.error(f"Encryption initialization failed: {str(e)}")
                 
                 # Último recurso: chave de emergência apenas para desenvolvimento
                 try:
                     emergency_key = Fernet.generate_key()
                     self._fernet = Fernet(emergency_key)
-                    sys.stderr.write("WARNING: Usando chave de emergência temporária.\n")
-                    sys.stderr.write("CRÍTICO: Configure ENCRYPTION_KEY para produção!\n")
+                    logging.warning("Using emergency temporary key.")
+                    logging.critical("Configure ENCRYPTION_KEY for production!")
                 except Exception as emergency_error:
-                    sys.stderr.write(f"FALHA TOTAL: {str(emergency_error)}\n")
+                    logging.critical(f"Total encryption failure: {str(emergency_error)}")
                     self._fernet = None
-                    sys.stderr.write("ERRO: Sistema sem criptografia - APENAS DESENVOLVIMENTO!\n")
+                    logging.error("System without encryption - DEVELOPMENT ONLY!")
                     return
     
     def is_encryption_available(self) -> bool:
@@ -141,7 +197,8 @@ class EncryptionManager:
     def encrypt(self, data: str) -> Optional[str]:
         """Criptografar dados sensíveis"""
         if not self.is_encryption_available():
-            st.error("Sistema de criptografia não disponível")
+            # Mensagem genérica para usuário
+            st.error("Encryption system not available")
             return None
             
         try:
@@ -149,14 +206,20 @@ class EncryptionManager:
                 return ""
             
             if self._fernet is None:
-                st.error("Sistema de criptografia não disponível")
+                st.error("Encryption system not available")
                 return None
                 
             encrypted_data = self._fernet.encrypt(data.encode('utf-8'))
             return base64.urlsafe_b64encode(encrypted_data).decode('utf-8')
             
         except Exception as e:
-            st.error(f"Erro na criptografia: {e}")
+            # Log interno detalhado, mensagem genérica ao usuário
+            is_production = os.getenv('APP_ENV', '').lower() == 'production'
+            if is_production:
+                logging.error(f"Encryption failed: {str(e)}")
+                st.error("Encryption operation failed")
+            else:
+                st.error(f"Encryption error: {e}")
             return None
     
     def decrypt(self, encrypted_data: str) -> Optional[str]:
@@ -169,7 +232,7 @@ class EncryptionManager:
                 return ""
             
             if self._fernet is None:
-                st.error("Sistema de criptografia não disponível")
+                st.error("Encryption system not available")
                 return None
                 
             decoded_data = base64.urlsafe_b64decode(encrypted_data.encode('utf-8'))
@@ -177,7 +240,13 @@ class EncryptionManager:
             return decrypted_data.decode('utf-8')
             
         except Exception as e:
-            st.error(f"Erro na descriptografia: {e}")
+            # Log interno detalhado, mensagem genérica ao usuário
+            is_production = os.getenv('APP_ENV', '').lower() == 'production'
+            if is_production:
+                logging.error(f"Decryption failed: {str(e)}")
+                st.error("Decryption operation failed")
+            else:
+                st.error(f"Decryption error: {e}")
             return None
     
     def mask_sensitive_value(self, value: str, show_chars: int = 4) -> str:
@@ -196,7 +265,13 @@ class EncryptionManager:
             key = Fernet.generate_key()
             return base64.urlsafe_b64encode(key).decode('utf-8')
         except Exception as e:
-            st.error(f"Erro ao gerar chave: {e}")
+            # Log interno detalhado, mensagem genérica ao usuário
+            is_production = os.getenv('APP_ENV', '').lower() == 'production'
+            if is_production:
+                logging.error(f"Key generation failed: {str(e)}")
+                st.error("Key generation failed")
+            else:
+                st.error(f"Error generating key: {e}")
             return ""
     
     def test_encryption(self) -> bool:
@@ -211,7 +286,13 @@ class EncryptionManager:
             return decrypted == test_data
             
         except Exception as e:
-            st.error(f"Teste de criptografia falhou: {e}")
+            # Log interno detalhado, mensagem genérica ao usuário
+            is_production = os.getenv('APP_ENV', '').lower() == 'production'
+            if is_production:
+                logging.error(f"Encryption test failed: {str(e)}")
+                st.error("Encryption test failed")
+            else:
+                st.error(f"Encryption test failed: {e}")
             return False
 
 
